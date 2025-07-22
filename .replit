@@ -1,16 +1,20 @@
-run =  ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
 entrypoint = "main.py"
 modules = ["python-3.11"]
 
-hidden = [".pythonlibs"]
-
 [nix]
 channel = "stable-24_05"
+packages = ["SDL2", "SDL2_image", "SDL2_mixer", "SDL2_ttf", "bash", "fontconfig", "freetype", "glibcLocales", "libjpeg", "libpng", "pkg-config", "portmidi", "postgresql", "sqlite-interactive"]
+
+[unitTest]
+language = "python3"
+
+[gitHubImport]
+requiredFiles = [".replit", "replit.nix"]
 
 [deployment]
-run =  ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+run = ["python3", "main.py"]
 deploymentTarget = "cloudrun"
 
 [[ports]]
-localPort = 5000
+localPort = 81
 externalPort = 80

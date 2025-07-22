@@ -1,0 +1,291 @@
+from flask import request, jsonify
+from models.shop import Shop, ShopHours, ShopActionLog
+from datetime import datetime
+from models import db
+from utils.auth_decorator import auth_required
+from utils.role_decorator import role_required
+from models.user import UserProfile
+from models.vendor import VendorProfile
+
+# --- Create shop by vendor ---
+@auth_required
+@role_required(["vendor"])
+def create_shop():
+    user = request.user
+    data = request.get_json()
+    vendor_profile = VendorProfile.query.filter_by(user_phone=user.phone).first()
+    if not vendor_profile:
+        return jsonify({"status": "error", "message": "Vendor profile not found. Please complete vendor onboarding first."}), 400
+
+    if Shop.query.filter_by(phone=user.phone).first():
+        return jsonify({"status": "error", "message": "Shop already exists for this vendor"}), 400
+
+    required_fields = ["shop_name", "shop_type"]
+    if not all(field in data for field in required_fields):
+        return jsonify({"status": "error", "message": "Missing required fields"}), 400
+
+    new_shop = Shop(
+        shop_name=data["shop_name"],
+        shop_type=data["shop_type"],
+        society=user.society,
+        city=user.city,
+        phone=user.phone,
+        description=data.get("description", ""),
+        delivers=data.get("delivers", False),
+        appointment_only=data.get("appointment_only", False),
+        is_open=data.get("is_open", True),
+        category_tags=data.get("category_tags"),
+        logo_url=data.get("logo_url"),
+        featured=data.get("featured", False),
+        verified=data.get("verified", False),
+        last_active_at=datetime.utcnow()
+    )
+
+    db.session.add(new_shop)
+    db.session.flush()  # Get shop.id
+
+    # Link shop to vendor
+    vendor_profile.shop_id = new_shop.id
+
+    # Mark onboarding done after shop creation
+    user.role_onboarding_done = True
+
+    db.session.commit()
+
+    return jsonify({"status": "success", "message": "Shop created"}), 200
+
+# --- Edit shop by vendor ---
+@auth_required
+@role_required(["vendor"])
+def edit_shop():
+    user = request.user
+    data = request.get_json()
+
+    shop = Shop.query.filter_by(phone=user.phone).first()
+    if not shop:
+        return jsonify({"status": "error", "message": "Shop not found"}), 404
+
+    shop.shop_name = data.get("shop_name", shop.shop_name)
+    shop.shop_type = data.get("shop_type", shop.shop_type)
+    shop.society = data.get("society", shop.society)
+    shop.description = data.get("description", shop.description)
+    shop.delivers = data.get("delivers", shop.delivers)
+    shop.appointment_only = data.get("appointment_only", shop.appointment_only)
+    shop.is_open = data.get("is_open", shop.is_open)
+    shop.category_tags = data.get("category_tags", shop.category_tags)
+    shop.logo_url = data.get("logo_url", shop.logo_url)
+    shop.featured = data.get("featured", shop.featured)
+    shop.verified = data.get("verified", shop.verified)
+
+    db.session.commit()
+    return jsonify({"status": "success", "message": "Shop updated"}), 200
+
+# --- Get shop by vendor ---
+@auth_required
+@role_required(["vendor", "admin"])
+def get_my_shop():
+    user = request.user
+
+    if user.role == "vendor":
+        shop = Shop.query.filter_by(phone=user.phone).first()
+        if not shop:
+            return jsonify({"status": "error", "message": "Shop not found"}), 404
+
+        result = {
+            "id": shop.id,
+            "shop_name": shop.shop_name,
+            "shop_type": shop.shop_type,
+            "society": shop.society,
+            "phone": shop.phone,
+            "description": shop.description,
+            "delivers": shop.delivers,
+            "appointment_only": shop.appointment_only,
+            "is_open": shop.is_open,
+            "logo_url": shop.logo_url,
+            "category_tags": shop.category_tags,
+            "verified": shop.verified,
+            "featured": shop.featured
+        }
+        return jsonify({"status": "success", "data": result}), 200
+
+    else:  # admin sees all shops
+        shops = Shop.query.all()
+        result = [{
+            "id": s.id,
+            "shop_name": s.shop_name,
+            "shop_type": s.shop_type,
+            "society": s.society,
+            "phone": s.phone,
+            "description": s.description,
+            "delivers": s.delivers,
+            "appointment_only": s.appointment_only,
+            "is_open": s.is_open,
+            "logo_url": s.logo_url,
+            "category_tags": s.category_tags,
+            "verified": s.verified,
+            "featured": s.featured
+        } for s in shops]
+        return jsonify({"status": "success", "data": result}), 200
+
+# --- Update shop hours ---
+@auth_required
+@role_required(["vendor"])
+def update_shop_hours():
+    user = UserProfile.query.filter_by(phone=request.phone).first()
+    shop = Shop.query.filter_by(phone=user.phone).first()
+
+    if not shop:
+        return jsonify({"status": "error", "message": "Shop not found"}), 404
+
+    data = request.get_json()
+    weekly_hours = data.get("weekly_hours")
+
+    if not weekly_hours:
+        return jsonify({"status": "error", "message": "No hours data provided"}), 400
+
+    # Clear previous hours
+    ShopHours.query.filter_by(shop_id=shop.id).delete()
+
+    for entry in weekly_hours:
+        day = entry.get("day_of_week")
+        open_time = entry.get("open_time")
+        close_time = entry.get("close_time")
+
+        # Skip if closed or incomplete
+        if day is None or open_time in [None, "", "Closed"] or close_time in [None, "", "Closed"]:
+            continue
+
+        try:
+            open_dt = datetime.strptime(open_time, "%H:%M").time()
+            close_dt = datetime.strptime(close_time, "%H:%M").time()
+        except ValueError:
+            continue  # Skip invalid time format
+
+        new_hour = ShopHours(
+            shop_id=shop.id,
+            day_of_week=day,
+            open_time=open_dt,
+            close_time=close_dt
+        )
+        db.session.add(new_hour)
+
+    db.session.commit()
+    return jsonify({"status": "success", "message": "Shop hours updated"}), 200
+
+# Toggle shop status --------------------
+
+@auth_required
+@role_required(["vendor"])
+def toggle_shop_status():
+    user = request.user
+    data = request.get_json()
+    new_status = data.get("is_open")
+
+    if new_status not in [True, False]:
+        return jsonify({"status": "error", "message": "Invalid is_open value"}), 400
+
+    shop = Shop.query.filter_by(phone=user.phone).first()
+    if not shop:
+        return jsonify({"status": "error", "message": "Shop not found"}), 404
+
+    shop.is_open = new_status
+    timestamp = datetime.utcnow()
+
+    if new_status:
+        shop.last_opened_at = timestamp
+        action = "opened"
+    else:
+        shop.last_closed_at = timestamp
+        action = "closed"
+
+    log = ShopActionLog(shop_id=shop.id, action=action, timestamp=timestamp)
+    db.session.add(log)
+    db.session.commit()
+
+    return jsonify({"status": "success", "message": f"Shop marked as {action}"}), 200
+
+
+# --- Shop searching by customer ---
+
+# List all shops in the user's society and city
+@auth_required
+@role_required(["consumer"])
+def list_shops():
+    user = request.user
+    city, society = user.city, user.society
+
+    # Optional query filters
+    status = request.args.get("status")       # e.g. "open" or "closed"
+    shop_type = request.args.get("type")      # e.g. "grocery"
+    tags = request.args.getlist("tag")        # e.g. ?tag=organic&tag=dairy
+
+    query = Shop.query.filter_by(city=city, society=society)
+
+    if status == "open":
+        query = query.filter_by(is_open=True)
+    elif status == "closed":
+        query = query.filter_by(is_open=False)
+
+    if shop_type:
+        query = query.filter(Shop.shop_type.ilike(f"%{shop_type}%"))
+
+    if tags:
+        # assume category_tags stored as comma‐separated or JSON array
+        for t in tags:
+            query = query.filter(Shop.category_tags.ilike(f"%{t}%"))
+
+    shops = query.all()
+    result = []
+    for s in shops:
+        result.append({
+            "id": s.id,
+            "shop_name": s.shop_name,
+            "shop_type": s.shop_type,
+            "description": s.description,
+            "is_open": s.is_open,
+            "delivers": s.delivers,
+            "appointment_only": s.appointment_only,
+            "category_tags": s.category_tags,
+            "logo_url": s.logo_url
+        })
+
+    return jsonify({"status": "success", "shops": result}), 200
+
+# Search shops by name or type
+@auth_required
+@role_required(["consumer"])
+def search_shops():
+    user = request.user
+    city = user.city
+    society = user.society
+
+    query_param = request.args.get("q", "").lower().strip()
+
+    if not query_param:
+        return jsonify({"status": "error", "message": "Missing search query 'q'"}), 400
+
+    results = Shop.query.filter(
+        Shop.city == city,
+        Shop.society == society,
+        Shop.is_open == True,
+        db.or_(
+            Shop.shop_name.ilike(f"%{query_param}%"),
+            Shop.shop_type.ilike(f"%{query_param}%")
+        )
+    ).all()
+
+    shop_list = []
+    for shop in results:
+        shop_list.append({
+            "id": shop.id,
+            "shop_name": shop.shop_name,
+            "shop_type": shop.shop_type,
+            "description": shop.description,
+            "is_open": shop.is_open,
+            "delivers": shop.delivers,
+            "appointment_only": shop.appointment_only,
+            "category_tags": shop.category_tags,
+            "logo_url": shop.logo_url
+        })
+
+    return jsonify({"status": "success", "shops": shop_list}), 200

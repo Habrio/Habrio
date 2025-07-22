@@ -1,0 +1,12 @@
+flask
+flask_sqlalchemy
+flask_cors
+python-dotenv
+twilio
+langchain
+pandas
+sqlalchemy
+werkzeug
+langchain-community
+psycopg2-binary
+openpyxl
