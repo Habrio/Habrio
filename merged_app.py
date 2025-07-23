@@ -605,146 +605,6 @@ def clear_cart():
     return jsonify({"status": "success", "message": "Cart cleared"}), 200
 
 
-# === services/auth.py ===
-from flask import request, jsonify
-import random, uuid
-from datetime import datetime, timedelta
-from twilio.rest import Client
-import os
-
-# --- Logout handler ---
-
-def logout_handler():
-    token = request.headers.get("Authorization")
-    if not token:
-        return jsonify({"status": "error", "message": "Token missing"}), 401
-
-    user = UserProfile.query.filter_by(auth_token=token).first()
-    if not user:
-        return jsonify({"status": "error", "message": "Invalid token"}), 401
-
-    user.auth_token = None
-    user.token_created_at = None
-    db.session.commit()
-
-    return jsonify({"status": "success", "message": "Logged out"}), 200
-
-# --- Twilio Configuration ---
-
-twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
-twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
-whatsapp_from = os.getenv("TWILIO_WHATSAPP_FROM")
-
-if not all([twilio_sid, twilio_token, whatsapp_from]):
-    raise EnvironmentError("❌ Twilio credentials are missing from environment variables.")
-
-client = Client(twilio_sid, twilio_token)
-
-
-# --- OTP Utility ---
-
-def generate_otp():
-    return str(random.randint(100000, 999999))
-
-
-def send_whatsapp_message(to, body):
-    try:
-        message = client.messages.create(
-            from_=whatsapp_from,
-            to=f"whatsapp:{to}",
-            body=body
-        )
-        print(f"[WhatsApp] ✅ Message sent. SID: {message.sid}")
-    except Exception as e:
-        print(f"[WhatsApp] ❌ Failed to send message: {e}")
-
-
-# --- Send OTP ---
-
-def send_otp_handler():
-    data = request.get_json()
-    phone = data.get("phone")
-
-    if not phone:
-        return jsonify({"status": "error", "message": "Phone number is required"}), 400
-
-    # Generate OTP (you may already have this logic)
-    otp_code = str(random.randint(100000, 999999))
-
-    # ✅ Create new OTP record with fresh timestamp
-    new_otp = OTP(
-        phone=phone,
-        otp=otp_code,
-        is_used=False,
-        created_at=datetime.utcnow()
-    )
-
-    db.session.add(new_otp)
-    db.session.commit()
-
-    # ✅ Send via Twilio or mock
-    print(f"[DEBUG] OTP for {phone} is {otp_code}")  # Or use your actual Twilio send logic
-
-    return jsonify({"status": "success", "message": "OTP sent"}), 200
-
-
-# --- Verify OTP ---
-
-def verify_otp_handler():
-    data = request.get_json()
-    phone = data.get("phone", "").strip()
-    otp = data.get("otp", "").strip()
-
-    if not phone or not otp:
-        return jsonify({"status": "error", "message": "Phone and OTP are required"}), 400
-
-    # ✅ Look for matching OTP record
-    otp_record = OTP.query.filter_by(phone=phone, otp=otp, is_used=False).first()
-
-    if not otp_record:
-        # 🔍 Debug info if OTP failed
-        recent_otp = OTP.query.filter_by(phone=phone).order_by(OTP.created_at.desc()).first()
-        if recent_otp:
-            print(f"[DEBUG] OTP mismatch: submitted={otp}, expected={recent_otp.otp}")
-            print(f"[DEBUG] is_used={recent_otp.is_used}, created_at={recent_otp.created_at}")
-        else:
-            print(f"[DEBUG] No OTP record found for phone: {phone}")
-        return jsonify({"status": "error", "message": "Invalid or expired OTP"}), 401
-
-    # ✅ Check OTP expiry
-    otp_expiry_minutes = 10
-    if datetime.utcnow() - otp_record.created_at > timedelta(minutes=otp_expiry_minutes):
-        return jsonify({"status": "error", "message": "OTP expired"}), 401
-
-    # ✅ Mark OTP as used
-    otp_record.is_used = True
-
-    # ✅ Generate secure token
-    token = str(uuid.uuid4())
-    otp_record.token = token
-
-    # ✅ Get device/user-agent info safely
-    user_agent = request.headers.get("User-Agent", "")[:200]
-
-    # ✅ Create or update UserProfile
-    user = UserProfile.query.filter_by(phone=phone).first()
-    if not user:
-        user = UserProfile(phone=phone)
-
-    user.auth_token = token
-    user.token_created_at = datetime.utcnow()
-    user.device_info = user_agent
-
-    # ✅ Commit to DB
-    db.session.add(otp_record)
-    db.session.add(user)
-    db.session.commit()
-
-    print(f"[DEBUG] ✅ OTP verified. Auth token issued for {phone}")
-
-    return jsonify({"status": "success", "auth_token": token}), 200
-
-
 # === services/vendororder.py ===
 from flask import request, jsonify
 from utils.auth_decorator import auth_required
@@ -1102,116 +962,6 @@ def complete_return(order_id):
     db.session.commit()
     return jsonify({"status": "success", "message": "Return marked as completed"}), 200
 
-
-# === services/user.py ===
-# --- services/user.py ---
-from flask import request, jsonify
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
-from datetime import datetime
-
-# Basic onboarding -------------
-@auth_required
-def basic_onboarding():
-    data = request.get_json()
-    required_fields = ["name", "city", "society", "role"]
-    if not all(field in data for field in required_fields):
-        return jsonify({"status": "error", "message": "Missing fields"}), 400
-
-    phone = request.phone
-    role = data["role"]
-
-    user = UserProfile.query.filter_by(phone=phone).first()
-
-    if user:
-        if user.basic_onboarding_done:
-            return jsonify({"status": "error", "message": "User already onboarded"}), 400
-        if user.role and user.role != role:
-            return jsonify({"status": "error", "message": "Role mismatch"}), 400
-    else:
-        user = UserProfile(phone=phone)
-
-    user.name = data["name"]
-    user.city = data["city"]
-    user.society = data["society"]
-    user.role = role
-    user.basic_onboarding_done = True
-
-    db.session.add(user)
-    db.session.commit()
-
-    return jsonify({"status": "success", "message": "Basic onboarding complete"}), 200
-
-# Consumer onboarding -------------
-@auth_required
-@role_required(["consumer"])
-def consumer_onboarding():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
-    if not user or not user.basic_onboarding_done:
-        return jsonify({"status": "error", "message": "Basic onboarding incomplete"}), 400
-    if user.role_onboarding_done:
-        return jsonify({"status": "error", "message": "Role onboarding already done"}), 400
-
-    data = request.get_json()
-
-    existing = ConsumerProfile.query.filter_by(user_phone=request.phone).first()
-    if existing:
-        return jsonify({"status": "error", "message": "Profile already exists"}), 400
-
-    consumer_profile = ConsumerProfile(
-        user_phone=request.phone,
-        name=user.name,
-        city=user.city,
-        society=user.society,
-        flat_number=data.get("flat_number"),
-        profile_image_url=data.get("profile_image_url"),
-        gender=data.get("gender"),
-        date_of_birth=data.get("date_of_birth"),
-        preferred_language=data.get("preferred_language")
-    )
-
-    db.session.add(consumer_profile)
-    user.role_onboarding_done = True
-    db.session.commit()
-
-    return jsonify({"status": "success", "message": "Consumer onboarding done"}), 200
-
-# Get Consumer Profile -------------
-
-@auth_required
-@role_required(["consumer"])
-def get_consumer_profile():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
-    if not user:
-        return jsonify({"status": "error", "message": "User not found"}), 404
-
-    profile = ConsumerProfile.query.filter_by(user_phone=user.phone).first()
-    if not profile:
-        return jsonify({"status": "error", "message": "Consumer profile not found"}), 404
-
-    data = profile.to_dict()
-    return jsonify({"status": "success", "data": data}), 200
-
-# Edit Consumer Profile -------------
-@auth_required
-@role_required(["consumer"])
-def edit_consumer_profile():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
-    profile = ConsumerProfile.query.filter_by(user_phone=user.phone).first()
-
-    if not profile:
-        return jsonify({"status": "error", "message": "Consumer profile not found"}), 404
-
-    data = request.get_json()
-
-    profile.flat_number = data.get("flat_number", profile.flat_number)
-    profile.profile_image_url = data.get("profile_image_url", profile.profile_image_url)
-    profile.gender = data.get("gender", profile.gender)
-    profile.date_of_birth = data.get("date_of_birth", profile.date_of_birth)
-    profile.preferred_language = data.get("preferred_language", profile.preferred_language)
-
-    db.session.commit()
-    return jsonify({"status": "success", "message": "Profile updated"}), 200
 
 # === services/consumerorder.py ===
 from flask import request, jsonify
@@ -2406,6 +2156,259 @@ def search_shops():
 
     return jsonify({"status": "success", "shops": shop_list}), 200
 
+# === services/auth.py ===
+from flask import request, jsonify
+import random, uuid
+from datetime import datetime, timedelta
+from twilio.rest import Client
+import os
+
+# --- Logout handler ---
+
+def logout_handler():
+    token = request.headers.get("Authorization")
+    if not token:
+        return jsonify({"status": "error", "message": "Token missing"}), 401
+
+    user = UserProfile.query.filter_by(auth_token=token).first()
+    if not user:
+        return jsonify({"status": "error", "message": "Invalid token"}), 401
+
+    user.auth_token = None
+    user.token_created_at = None
+    db.session.commit()
+
+    return jsonify({"status": "success", "message": "Logged out"}), 200
+
+# --- Twilio Configuration ---
+
+twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
+twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
+whatsapp_from = os.getenv("TWILIO_WHATSAPP_FROM")
+
+if not all([twilio_sid, twilio_token, whatsapp_from]):
+    raise EnvironmentError("❌ Twilio credentials are missing from environment variables.")
+
+client = Client(twilio_sid, twilio_token)
+
+
+# --- OTP Utility ---
+
+def generate_otp():
+    return str(random.randint(100000, 999999))
+
+
+def send_whatsapp_message(to, body):
+    try:
+        message = client.messages.create(
+            from_=whatsapp_from,
+            to=f"whatsapp:{to}",
+            body=body
+        )
+        print(f"[WhatsApp] ✅ Message sent. SID: {message.sid}")
+    except Exception as e:
+        print(f"[WhatsApp] ❌ Failed to send message: {e}")
+
+
+# --- Send OTP ---
+
+def send_otp_handler():
+    data = request.get_json()
+    phone = data.get("phone")
+
+    if not phone:
+        return jsonify({"status": "error", "message": "Phone number is required"}), 400
+
+    # Generate OTP (you may already have this logic)
+    otp_code = str(random.randint(100000, 999999))
+
+    # ✅ Create new OTP record with fresh timestamp
+    new_otp = OTP(
+        phone=phone,
+        otp=otp_code,
+        is_used=False,
+        created_at=datetime.utcnow()
+    )
+
+    db.session.add(new_otp)
+    db.session.commit()
+
+    # ✅ Send via Twilio or mock
+    print(f"[DEBUG] OTP for {phone} is {otp_code}")  # Or use your actual Twilio send logic
+
+    return jsonify({"status": "success", "message": "OTP sent"}), 200
+
+# --- Verify OTP ---
+
+def verify_otp_handler():
+    data = request.get_json()
+    phone = data.get("phone", "").strip()
+    otp = data.get("otp", "").strip()
+
+    if not phone or not otp:
+        return jsonify({"status": "error", "message": "Phone and OTP are required"}), 400
+
+    # ✅ Look for matching OTP record
+    otp_record = OTP.query.filter_by(phone=phone, otp=otp, is_used=False).first()
+
+    if not otp_record:
+        # 🔍 Debug info if OTP failed
+        recent_otp = OTP.query.filter_by(phone=phone).order_by(OTP.created_at.desc()).first()
+        if recent_otp:
+            print(f"[DEBUG] OTP mismatch: submitted={otp}, expected={recent_otp.otp}")
+            print(f"[DEBUG] is_used={recent_otp.is_used}, created_at={recent_otp.created_at}")
+        else:
+            print(f"[DEBUG] No OTP record found for phone: {phone}")
+        return jsonify({"status": "error", "message": "Invalid or expired OTP"}), 401
+
+    # ✅ Check OTP expiry
+    otp_expiry_minutes = 10
+    if datetime.utcnow() - otp_record.created_at > timedelta(minutes=otp_expiry_minutes):
+        return jsonify({"status": "error", "message": "OTP expired"}), 401
+
+    # ✅ Mark OTP as used
+    otp_record.is_used = True
+
+    # ✅ Generate secure token
+    token = str(uuid.uuid4())
+    otp_record.token = token
+
+    # ✅ Get device/user-agent info safely
+    user_agent = request.headers.get("User-Agent", "")[:200]
+
+    # ✅ Create or update UserProfile
+    user = UserProfile.query.filter_by(phone=phone).first()
+    if not user:
+        user = UserProfile(phone=phone)
+
+    user.auth_token = token
+    user.token_created_at = datetime.utcnow()
+    user.device_info = user_agent
+
+    # ✅ Commit to DB
+    db.session.add(otp_record)
+    db.session.add(user)
+    db.session.commit()
+
+    print(f"[DEBUG] ✅ OTP verified. Auth token issued for {phone}")
+
+    return jsonify({
+        "status": "success",
+        "auth_token": token,
+        "basic_onboarding_done": user.basic_onboarding_done if user else False
+    }), 200
+
+# === services/user.py ===
+# --- services/user.py ---
+from flask import request, jsonify
+from utils.auth_decorator import auth_required
+from utils.role_decorator import role_required
+from datetime import datetime
+
+# Basic onboarding -------------
+@auth_required
+def basic_onboarding():
+    data = request.get_json()
+    required_fields = ["name", "city", "society", "role"]
+    if not all(field in data for field in required_fields):
+        return jsonify({"status": "error", "message": "Missing fields"}), 400
+
+    phone = request.phone
+    role = data["role"]
+
+    user = UserProfile.query.filter_by(phone=phone).first()
+
+    if user:
+        if user.basic_onboarding_done:
+            return jsonify({"status": "error", "message": "User already onboarded"}), 400
+        if user.role and user.role != role:
+            return jsonify({"status": "error", "message": "Role mismatch"}), 400
+    else:
+        user = UserProfile(phone=phone)
+
+    user.name = data["name"]
+    user.city = data["city"]
+    user.society = data["society"]
+    user.role = role
+    user.basic_onboarding_done = True
+
+    db.session.add(user)
+    db.session.commit()
+
+    return jsonify({"status": "success", "message": "Basic onboarding complete"}), 200
+
+
+# Consumer onboarding -------------
+@auth_required
+@role_required(["consumer"])
+def consumer_onboarding():
+    user = UserProfile.query.filter_by(phone=request.phone).first()
+    if not user or not user.basic_onboarding_done:
+        return jsonify({"status": "error", "message": "Basic onboarding incomplete"}), 400
+    if user.role_onboarding_done:
+        return jsonify({"status": "error", "message": "Role onboarding already done"}), 400
+
+    data = request.get_json()
+
+    existing = ConsumerProfile.query.filter_by(user_phone=request.phone).first()
+    if existing:
+        return jsonify({"status": "error", "message": "Profile already exists"}), 400
+
+    consumer_profile = ConsumerProfile(
+        user_phone=request.phone,
+        name=user.name,
+        city=user.city,
+        society=user.society,
+        flat_number=data.get("flat_number"),
+        profile_image_url=data.get("profile_image_url"),
+        gender=data.get("gender"),
+        date_of_birth=data.get("date_of_birth"),
+        preferred_language=data.get("preferred_language")
+    )
+
+    db.session.add(consumer_profile)
+    user.role_onboarding_done = True
+    db.session.commit()
+
+    return jsonify({"status": "success", "message": "Consumer onboarding done"}), 200
+
+# Get Consumer Profile -------------
+
+@auth_required
+@role_required(["consumer"])
+def get_consumer_profile():
+    user = UserProfile.query.filter_by(phone=request.phone).first()
+    if not user:
+        return jsonify({"status": "error", "message": "User not found"}), 404
+
+    profile = ConsumerProfile.query.filter_by(user_phone=user.phone).first()
+    if not profile:
+        return jsonify({"status": "error", "message": "Consumer profile not found"}), 404
+
+    data = profile.to_dict()
+    return jsonify({"status": "success", "data": data}), 200
+
+# Edit Consumer Profile -------------
+@auth_required
+@role_required(["consumer"])
+def edit_consumer_profile():
+    user = UserProfile.query.filter_by(phone=request.phone).first()
+    profile = ConsumerProfile.query.filter_by(user_phone=user.phone).first()
+
+    if not profile:
+        return jsonify({"status": "error", "message": "Consumer profile not found"}), 404
+
+    data = request.get_json()
+
+    profile.flat_number = data.get("flat_number", profile.flat_number)
+    profile.profile_image_url = data.get("profile_image_url", profile.profile_image_url)
+    profile.gender = data.get("gender", profile.gender)
+    profile.date_of_birth = data.get("date_of_birth", profile.date_of_birth)
+    profile.preferred_language = data.get("preferred_language", profile.preferred_language)
+
+    db.session.commit()
+    return jsonify({"status": "success", "message": "Profile updated"}), 200
+
 # === utils/__init__.py ===
 
 
@@ -2571,17 +2574,19 @@ from flask import Flask
     vendororder as vendor_order_services
 )
 # from agent.query_handler import ask_agent_handler
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
 from dotenv import load_dotenv
 import os
 import logging
+from flask_cors import CORS
+
+# This will allow all origins by default
+app = Flask(__name__)
+CORS(app)
 
 # --- Load Environment Variables ---
 load_dotenv()
 
 # --- App Setup ---
-app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -2595,14 +2600,14 @@ with app.app_context():
 def health():
     return {"status": "ok", "base_url": "https://2e6bee57-c137-4144-90f2-64265943227d-00-c6d7jiueybzk.pike.replit.dev"}, 200
 
-# ========================== Auth Routes ==========================
+# ===================== Auth Routes and basic onboarding ====================
 app.add_url_rule("/send-otp", view_func=auth_services.send_otp_handler, methods=["POST"])
 app.add_url_rule("/verify-otp", view_func=auth_services.verify_otp_handler, methods=["POST"])
 app.add_url_rule("/logout", view_func=auth_services.logout_handler, methods=["POST"])
+app.add_url_rule("/onboarding/basic", view_func=user_services.basic_onboarding, methods=["POST"])
 
 # ========================== Consumer Routes ==========================
 # Onboarding
-app.add_url_rule("/onboarding/basic", view_func=user_services.basic_onboarding, methods=["POST"])
 app.add_url_rule("/onboarding/consumer", view_func=user_services.consumer_onboarding, methods=["POST"])
 
 # Profile

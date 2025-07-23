@@ -12,17 +12,19 @@ from services import (
     vendororder as vendor_order_services
 )
 # from agent.query_handler import ask_agent_handler
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
 from dotenv import load_dotenv
 import os
 import logging
+from flask_cors import CORS
+
+# This will allow all origins by default
+app = Flask(__name__)
+CORS(app)
 
 # --- Load Environment Variables ---
 load_dotenv()
 
 # --- App Setup ---
-app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -36,14 +38,14 @@ with app.app_context():
 def health():
     return {"status": "ok", "base_url": "https://2e6bee57-c137-4144-90f2-64265943227d-00-c6d7jiueybzk.pike.replit.dev"}, 200
 
-# ========================== Auth Routes ==========================
+# ===================== Auth Routes and basic onboarding ====================
 app.add_url_rule("/send-otp", view_func=auth_services.send_otp_handler, methods=["POST"])
 app.add_url_rule("/verify-otp", view_func=auth_services.verify_otp_handler, methods=["POST"])
 app.add_url_rule("/logout", view_func=auth_services.logout_handler, methods=["POST"])
+app.add_url_rule("/onboarding/basic", view_func=user_services.basic_onboarding, methods=["POST"])
 
 # ========================== Consumer Routes ==========================
 # Onboarding
-app.add_url_rule("/onboarding/basic", view_func=user_services.basic_onboarding, methods=["POST"])
 app.add_url_rule("/onboarding/consumer", view_func=user_services.consumer_onboarding, methods=["POST"])
 
 # Profile

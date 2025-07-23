@@ -81,7 +81,6 @@ def send_otp_handler():
 
     return jsonify({"status": "success", "message": "OTP sent"}), 200
 
-
 # --- Verify OTP ---
 
 def verify_otp_handler():
@@ -136,4 +135,8 @@ def verify_otp_handler():
 
     print(f"[DEBUG] ✅ OTP verified. Auth token issued for {phone}")
 
-    return jsonify({"status": "success", "auth_token": token}), 200
+    return jsonify({
+        "status": "success",
+        "auth_token": token,
+        "basic_onboarding_done": user.basic_onboarding_done if user else False
+    }), 200

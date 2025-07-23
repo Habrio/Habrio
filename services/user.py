@@ -38,6 +38,7 @@ def basic_onboarding():
 
     return jsonify({"status": "success", "message": "Basic onboarding complete"}), 200
 
+
 # Consumer onboarding -------------
 @auth_required
 @role_required(["consumer"])
