@@ -1,0 +1,102 @@
+import pytest
+from models.user import OTP, UserProfile
+
+
+def send_otp(client, phone):
+    return client.post('/send-otp', json={'phone': phone})
+
+
+def verify_otp(client, phone, otp):
+    return client.post('/verify-otp', json={'phone': phone, 'otp': otp})
+
+
+def logout(client, token=None):
+    headers = {}
+    if token:
+        headers['Authorization'] = token
+    return client.post('/logout', headers=headers)
+
+
+def basic_onboarding(client, token):
+    headers = {'Authorization': token}
+    payload = {
+        'name': 'Test',
+        'city': 'City',
+        'society': 'Society',
+        'role': 'consumer'
+    }
+    return client.post('/onboarding/basic', json=payload, headers=headers)
+
+
+def test_send_otp_success_and_db_entry(client, app):
+    phone = '1234567890'
+    response = send_otp(client, phone)
+    assert response.status_code == 200
+    assert response.get_json()['status'] == 'success'
+    with app.app_context():
+        otp_entry = OTP.query.filter_by(phone=phone).first()
+        assert otp_entry is not None
+        assert otp_entry.is_used is False
+
+
+def test_send_otp_no_phone(client):
+    response = client.post('/send-otp', json={})
+    assert response.status_code == 400
+    assert response.get_json()['status'] == 'error'
+
+
+def test_verify_otp_success_creates_profile(client, app):
+    phone = '1112223333'
+    send_otp(client, phone)
+    with app.app_context():
+        otp_code = OTP.query.filter_by(phone=phone).first().otp
+    response = verify_otp(client, phone, otp_code)
+    data = response.get_json()
+    assert response.status_code == 200
+    assert data['status'] == 'success'
+    assert 'auth_token' in data
+    token = data['auth_token']
+    with app.app_context():
+        user = UserProfile.query.filter_by(phone=phone).first()
+        assert user is not None
+        assert user.auth_token == token
+        assert user.basic_onboarding_done is False
+
+
+def test_verify_otp_invalid_code(client, app):
+    phone = '4445556666'
+    send_otp(client, phone)
+    response = verify_otp(client, phone, '000000')
+    assert response.status_code == 401
+    assert response.get_json()['message'] == 'Invalid or expired OTP'
+
+
+def test_logout_flow_invalidates_token(client, app):
+    phone = '7778889999'
+    send_otp(client, phone)
+    with app.app_context():
+        otp_code = OTP.query.filter_by(phone=phone).first().otp
+    verify_resp = verify_otp(client, phone, otp_code)
+    token = verify_resp.get_json()['auth_token']
+    # token works before logout
+    onboard_resp = basic_onboarding(client, token)
+    assert onboard_resp.status_code == 200
+    # logout
+    logout_resp = logout(client, token)
+    assert logout_resp.status_code == 200
+    with app.app_context():
+        user = UserProfile.query.filter_by(phone=phone).first()
+        assert user.auth_token is None
+    # subsequent authorized call fails
+    fail_resp = basic_onboarding(client, token)
+    assert fail_resp.status_code == 401
+    assert fail_resp.get_json()['message'] in {'Invalid token', 'Token missing'}
+    # logout again with same token should also fail
+    second_logout = logout(client, token)
+    assert second_logout.status_code == 401
+
+
+def test_logout_without_token(client):
+    response = logout(client)
+    assert response.status_code == 401
+    assert response.get_json()['message'] == 'Token missing'
