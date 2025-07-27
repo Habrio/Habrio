@@ -106,6 +106,37 @@ def test_cart_add_invalid_item(client, app):
     assert resp.status_code == 404
 
 
+def test_cart_add_missing_fields(client, app):
+    phone = '9123400004'
+    token = obtain_token(client, app, phone)
+    onboard_consumer(client, token)
+    item_id, _ = create_item(app)
+
+    resp = client.post('/cart/add', json={'quantity': 1}, headers={'Authorization': token})
+    assert resp.status_code == 404
+
+    resp = client.post('/cart/add', json={'item_id': item_id, 'quantity': 0}, headers={'Authorization': token})
+    assert resp.status_code == 400
+
+
+def test_update_cart_invalid_request(client, app):
+    phone = '9123400005'
+    token = obtain_token(client, app, phone)
+    onboard_consumer(client, token)
+    item_id, _ = create_item(app)
+
+    add_to_cart_helper(client, token, item_id, 1)
+
+    resp = client.post('/cart/update', json={'item_id': item_id, 'quantity': 0}, headers={'Authorization': token})
+    assert resp.status_code == 400
+
+    resp = client.post('/cart/update', json={'quantity': 2}, headers={'Authorization': token})
+    assert resp.status_code == 400
+
+    resp = client.post('/cart/update', json={'item_id': item_id + 1, 'quantity': 2}, headers={'Authorization': token})
+    assert resp.status_code == 404
+
+
 # -------------------- Order Placement --------------------
 
 def test_confirm_order_wallet_and_cash(client, app):
