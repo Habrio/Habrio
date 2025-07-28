@@ -1,4 +1,5 @@
 from app.version import API_PREFIX
+from flask_limiter.util import get_remote_address
 
 
 def _join_prefix(*parts):
@@ -61,7 +62,15 @@ def register_api_v1(app):
     add(j("/cart/clear"), view_func=cart_services.clear_cart, methods=["POST"])
 
     # Consumer Orders
-    add(j("/order/confirm"), view_func=consumer_order_services.confirm_order, methods=["POST"])
+    add(
+        j("/order/confirm"),
+        view_func=app.limiter.limit(
+            app.config["ORDER_LIMIT_PER_IP"],
+            key_func=get_remote_address,
+            error_message="Too many orders from this IP",
+        )(consumer_order_services.confirm_order),
+        methods=["POST"],
+    )
     add(j("/order/history"), view_func=consumer_order_services.get_order_history, methods=["GET"])
     add(j("/order/consumer/confirm-modified/<int:order_id>"), view_func=consumer_order_services.confirm_modified_order, methods=["POST"])
     add(j("/order/consumer/cancel/<int:order_id>"), view_func=consumer_order_services.cancel_order_consumer, methods=["POST"])

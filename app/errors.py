@@ -2,6 +2,7 @@ import logging
 from flask import Blueprint
 from werkzeug.exceptions import HTTPException
 from app.utils.responses import error
+from flask_limiter.errors import RateLimitExceeded
 
 errors_bp = Blueprint("errors_bp", __name__)
 
@@ -18,3 +19,7 @@ def handle_unexpected_exception(e):
         status=500,
         code=500,
     )
+
+@errors_bp.app_errorhandler(RateLimitExceeded)
+def handle_rate_limit(e):
+    return error("Rate limit exceeded. Please try again later.", status=429)
