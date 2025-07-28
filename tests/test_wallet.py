@@ -3,14 +3,15 @@ from models.user import OTP
 from models.wallet import ConsumerWallet, WalletTransaction, VendorWallet, VendorWalletTransaction
 from models.vendor import VendorPayoutBank
 from models import db
+from app.version import API_PREFIX
 
 
 def send_otp(client, phone):
-    return client.post('/send-otp', json={'phone': phone})
+    return client.post(f"{API_PREFIX}/send-otp", json={'phone': phone})
 
 
 def verify_otp(client, phone, otp):
-    return client.post('/verify-otp', json={'phone': phone, 'otp': otp})
+    return client.post(f"{API_PREFIX}/verify-otp", json={'phone': phone, 'otp': otp})
 
 
 def obtain_token(client, app, phone):
@@ -23,19 +24,19 @@ def obtain_token(client, app, phone):
 
 def onboard_consumer(client, token):
     basic = {'name': 'C', 'city': 'Town', 'society': 'Soc', 'role': 'consumer'}
-    client.post('/onboarding/basic', json=basic, headers={'Authorization': token})
-    client.post('/onboarding/consumer', json={'flat_number': '1A'}, headers={'Authorization': token})
+    client.post(f"{API_PREFIX}/onboarding/basic", json=basic, headers={'Authorization': token})
+    client.post(f"{API_PREFIX}/onboarding/consumer", json={'flat_number': '1A'}, headers={'Authorization': token})
 
 
 def onboard_vendor(client, token):
     basic = {'name': 'V', 'city': 'Town', 'society': 'Soc', 'role': 'vendor'}
-    client.post('/onboarding/basic', json=basic, headers={'Authorization': token})
+    client.post(f"{API_PREFIX}/onboarding/basic", json=basic, headers={'Authorization': token})
 
 
 
 def setup_payout_bank(client, token):
     data = {'bank_name': 'BankA', 'account_number': '123456', 'ifsc_code': 'IFSC0'}
-    return client.post('/vendor/payout/setup', json=data, headers={'Authorization': token})
+    return client.post(f"{API_PREFIX}/vendor/payout/setup", json=data, headers={'Authorization': token})
 
 
 # ---------------------- Consumer Wallet ----------------------
@@ -45,7 +46,7 @@ def test_get_or_create_wallet(client, app):
     token = obtain_token(client, app, phone)
     onboard_consumer(client, token)
 
-    resp = client.get('/wallet', headers={'Authorization': token})
+    resp = client.get('/api/v1/wallet', headers={'Authorization': token})
     assert resp.status_code == 200
     assert resp.get_json()['balance'] == 0.0
     with app.app_context():
@@ -53,7 +54,7 @@ def test_get_or_create_wallet(client, app):
         assert wallet is not None
         assert float(wallet.balance) == 0.0
 
-    resp2 = client.get('/wallet', headers={'Authorization': token})
+    resp2 = client.get('/api/v1/wallet', headers={'Authorization': token})
     assert resp2.status_code == 200
     assert resp2.get_json()['balance'] == 0.0
     with app.app_context():
@@ -65,7 +66,7 @@ def test_load_wallet_success_and_invalid_amount(client, app):
     token = obtain_token(client, app, phone)
     onboard_consumer(client, token)
 
-    resp = client.post('/wallet/load', json={'amount': 500}, headers={'Authorization': token})
+    resp = client.post('/api/v1/wallet/load', json={'amount': 500}, headers={'Authorization': token})
     assert resp.status_code == 200
     assert resp.get_json()['balance'] == 500.0
     with app.app_context():
@@ -74,7 +75,7 @@ def test_load_wallet_success_and_invalid_amount(client, app):
         txn = WalletTransaction.query.filter_by(user_phone=phone, type='recharge').first()
         assert txn and float(txn.amount) == 500.0
 
-    resp_bad = client.post('/wallet/load', json={'amount': 0}, headers={'Authorization': token})
+    resp_bad = client.post('/api/v1/wallet/load', json={'amount': 0}, headers={'Authorization': token})
     assert resp_bad.status_code == 400
     assert resp_bad.get_json()['message'] == 'Invalid amount'
     with app.app_context():
@@ -86,9 +87,9 @@ def test_debit_wallet_success_and_insufficient(client, app):
     phone = '7000000003'
     token = obtain_token(client, app, phone)
     onboard_consumer(client, token)
-    client.post('/wallet/load', json={'amount': 300}, headers={'Authorization': token})
+    client.post('/api/v1/wallet/load', json={'amount': 300}, headers={'Authorization': token})
 
-    resp = client.post('/wallet/debit', json={'amount': 100}, headers={'Authorization': token})
+    resp = client.post('/api/v1/wallet/debit', json={'amount': 100}, headers={'Authorization': token})
     assert resp.status_code == 200
     assert resp.get_json()['balance'] == 200.0
     with app.app_context():
@@ -96,7 +97,7 @@ def test_debit_wallet_success_and_insufficient(client, app):
         assert float(wallet.balance) == 200.0
         assert WalletTransaction.query.filter_by(user_phone=phone, type='debit').count() == 1
 
-    resp_bad = client.post('/wallet/debit', json={'amount': 400}, headers={'Authorization': token})
+    resp_bad = client.post('/api/v1/wallet/debit', json={'amount': 400}, headers={'Authorization': token})
     assert resp_bad.status_code == 400
     assert resp_bad.get_json()['message'] == 'Insufficient balance'
     with app.app_context():
@@ -107,7 +108,7 @@ def test_debit_wallet_success_and_insufficient(client, app):
     phone2 = '7000000004'
     token2 = obtain_token(client, app, phone2)
     onboard_consumer(client, token2)
-    resp_none = client.post('/wallet/debit', json={'amount': 50}, headers={'Authorization': token2})
+    resp_none = client.post('/api/v1/wallet/debit', json={'amount': 50}, headers={'Authorization': token2})
     assert resp_none.status_code == 400
     assert resp_none.get_json()['message'] == 'Insufficient balance'
 
@@ -117,7 +118,7 @@ def test_refund_wallet_creates_wallet(client, app):
     token = obtain_token(client, app, phone)
     onboard_consumer(client, token)
 
-    resp = client.post('/wallet/refund', json={'amount': 120}, headers={'Authorization': token})
+    resp = client.post('/api/v1/wallet/refund', json={'amount': 120}, headers={'Authorization': token})
     assert resp.status_code == 200
     assert resp.get_json()['balance'] == 120.0
     with app.app_context():
@@ -132,11 +133,11 @@ def test_wallet_transaction_history(client, app):
     token = obtain_token(client, app, phone)
     onboard_consumer(client, token)
 
-    client.post('/wallet/load', json={'amount': 50}, headers={'Authorization': token})
-    client.post('/wallet/debit', json={'amount': 20}, headers={'Authorization': token})
-    client.post('/wallet/refund', json={'amount': 10}, headers={'Authorization': token})
+    client.post('/api/v1/wallet/load', json={'amount': 50}, headers={'Authorization': token})
+    client.post('/api/v1/wallet/debit', json={'amount': 20}, headers={'Authorization': token})
+    client.post('/api/v1/wallet/refund', json={'amount': 10}, headers={'Authorization': token})
 
-    resp = client.get('/wallet/history', headers={'Authorization': token})
+    resp = client.get('/api/v1/wallet/history', headers={'Authorization': token})
     assert resp.status_code == 200
     data = resp.get_json()['transactions']
     assert len(data) == 3
@@ -151,14 +152,14 @@ def test_get_vendor_wallet_and_creation(client, app):
     token = obtain_token(client, app, phone)
     onboard_vendor(client, token)
 
-    resp = client.get('/vendor/wallet', headers={'Authorization': token})
+    resp = client.get('/api/v1/vendor/wallet', headers={'Authorization': token})
     assert resp.status_code == 200
     assert resp.get_json()['balance'] == 0.0
     with app.app_context():
         wallet = VendorWallet.query.filter_by(user_phone=phone).first()
         assert wallet and float(wallet.balance) == 0.0
 
-    resp2 = client.get('/vendor/wallet', headers={'Authorization': token})
+    resp2 = client.get('/api/v1/vendor/wallet', headers={'Authorization': token})
     assert resp2.status_code == 200
     with app.app_context():
         assert VendorWallet.query.filter_by(user_phone=phone).count() == 1
@@ -169,7 +170,7 @@ def test_credit_vendor_wallet_and_invalid_amount(client, app):
     token = obtain_token(client, app, phone)
     onboard_vendor(client, token)
 
-    resp = client.post('/vendor/wallet/credit', json={'amount': 100}, headers={'Authorization': token})
+    resp = client.post('/api/v1/vendor/wallet/credit', json={'amount': 100}, headers={'Authorization': token})
     assert resp.status_code == 200
     assert resp.get_json()['balance'] == 100.0
     with app.app_context():
@@ -178,7 +179,7 @@ def test_credit_vendor_wallet_and_invalid_amount(client, app):
         txn = VendorWalletTransaction.query.filter_by(user_phone=phone, type='credit').first()
         assert txn and float(txn.amount) == 100.0
 
-    bad = client.post('/vendor/wallet/credit', json={'amount': 0}, headers={'Authorization': token})
+    bad = client.post('/api/v1/vendor/wallet/credit', json={'amount': 0}, headers={'Authorization': token})
     assert bad.status_code == 400
     assert bad.get_json()['message'] == 'Invalid credit amount'
     with app.app_context():
@@ -190,9 +191,9 @@ def test_debit_vendor_wallet_success_and_insufficient(client, app):
     phone = '7100000003'
     token = obtain_token(client, app, phone)
     onboard_vendor(client, token)
-    client.post('/vendor/wallet/credit', json={'amount': 100}, headers={'Authorization': token})
+    client.post('/api/v1/vendor/wallet/credit', json={'amount': 100}, headers={'Authorization': token})
 
-    resp = client.post('/vendor/wallet/debit', json={'amount': 30}, headers={'Authorization': token})
+    resp = client.post('/api/v1/vendor/wallet/debit', json={'amount': 30}, headers={'Authorization': token})
     assert resp.status_code == 200
     assert resp.get_json()['balance'] == 70.0
     with app.app_context():
@@ -200,7 +201,7 @@ def test_debit_vendor_wallet_success_and_insufficient(client, app):
         assert float(wallet.balance) == 70.0
         assert VendorWalletTransaction.query.filter_by(user_phone=phone, type='debit').count() == 1
 
-    resp_bad = client.post('/vendor/wallet/debit', json={'amount': 200}, headers={'Authorization': token})
+    resp_bad = client.post('/api/v1/vendor/wallet/debit', json={'amount': 200}, headers={'Authorization': token})
     assert resp_bad.status_code == 400
     assert resp_bad.get_json()['message'] == 'Insufficient balance'
 
@@ -210,9 +211,9 @@ def test_withdraw_vendor_wallet(client, app):
     token = obtain_token(client, app, phone)
     onboard_vendor(client, token)
     setup_payout_bank(client, token)
-    client.post('/vendor/wallet/credit', json={'amount': 100}, headers={'Authorization': token})
+    client.post('/api/v1/vendor/wallet/credit', json={'amount': 100}, headers={'Authorization': token})
 
-    resp = client.post('/vendor/wallet/withdraw', json={'amount': 60}, headers={'Authorization': token})
+    resp = client.post('/api/v1/vendor/wallet/withdraw', json={'amount': 60}, headers={'Authorization': token})
     assert resp.status_code == 200
     data = resp.get_json()
     assert data['balance'] == 40.0
@@ -223,7 +224,7 @@ def test_withdraw_vendor_wallet(client, app):
         txn = VendorWalletTransaction.query.filter_by(user_phone=phone, type='withdrawal').first()
         assert txn and float(txn.amount) == 60.0
 
-    resp_bad = client.post('/vendor/wallet/withdraw', json={'amount': 100}, headers={'Authorization': token})
+    resp_bad = client.post('/api/v1/vendor/wallet/withdraw', json={'amount': 100}, headers={'Authorization': token})
     assert resp_bad.status_code == 400
     assert resp_bad.get_json()['message'] == 'Insufficient balance'
 
@@ -231,8 +232,8 @@ def test_withdraw_vendor_wallet(client, app):
     phone2 = '7100000005'
     token2 = obtain_token(client, app, phone2)
     onboard_vendor(client, token2)
-    client.post('/vendor/wallet/credit', json={'amount': 20}, headers={'Authorization': token2})
-    fail_no_bank = client.post('/vendor/wallet/withdraw', json={'amount': 10}, headers={'Authorization': token2})
+    client.post('/api/v1/vendor/wallet/credit', json={'amount': 20}, headers={'Authorization': token2})
+    fail_no_bank = client.post('/api/v1/vendor/wallet/withdraw', json={'amount': 10}, headers={'Authorization': token2})
     assert fail_no_bank.status_code == 400
     assert fail_no_bank.get_json()['message'] == 'No payout bank setup found'
 
@@ -242,10 +243,10 @@ def test_vendor_wallet_history(client, app):
     token = obtain_token(client, app, phone)
     onboard_vendor(client, token)
 
-    client.post('/vendor/wallet/credit', json={'amount': 40}, headers={'Authorization': token})
-    client.post('/vendor/wallet/debit', json={'amount': 10}, headers={'Authorization': token})
+    client.post('/api/v1/vendor/wallet/credit', json={'amount': 40}, headers={'Authorization': token})
+    client.post('/api/v1/vendor/wallet/debit', json={'amount': 10}, headers={'Authorization': token})
 
-    resp = client.get('/vendor/wallet/history', headers={'Authorization': token})
+    resp = client.get('/api/v1/vendor/wallet/history', headers={'Authorization': token})
     assert resp.status_code == 200
     data = resp.get_json()['transactions']
     assert len(data) == 2

@@ -1,20 +1,21 @@
 import pytest
 from models.user import OTP, UserProfile
+from app.version import API_PREFIX
 
 
 def send_otp(client, phone):
-    return client.post('/send-otp', json={'phone': phone})
+    return client.post(f"{API_PREFIX}/send-otp", json={'phone': phone})
 
 
 def verify_otp(client, phone, otp):
-    return client.post('/verify-otp', json={'phone': phone, 'otp': otp})
+    return client.post(f"{API_PREFIX}/verify-otp", json={'phone': phone, 'otp': otp})
 
 
 def logout(client, token=None):
     headers = {}
     if token:
         headers['Authorization'] = token
-    return client.post('/logout', headers=headers)
+    return client.post(f"{API_PREFIX}/logout", headers=headers)
 
 
 def basic_onboarding(client, token):
@@ -25,7 +26,7 @@ def basic_onboarding(client, token):
         'society': 'Society',
         'role': 'consumer'
     }
-    return client.post('/onboarding/basic', json=payload, headers=headers)
+    return client.post(f"{API_PREFIX}/onboarding/basic", json=payload, headers=headers)
 
 
 def test_send_otp_success_and_db_entry(client, app):
@@ -40,7 +41,7 @@ def test_send_otp_success_and_db_entry(client, app):
 
 
 def test_send_otp_no_phone(client):
-    response = client.post('/send-otp', json={})
+    response = client.post('/api/v1/send-otp', json={})
     assert response.status_code == 400
     assert response.get_json()['status'] == 'error'
 

@@ -27,3 +27,9 @@ flask db-stamp-safe head
 
 Set `ALLOW_DB_MIGRATIONS=true` in production to permit upgrades or stamping.
 
+
+## API Versioning
+- All business endpoints are now served under `/api/v1/...`.
+- Error handlers remain global (no prefix).
+- Test-only routes remain unversioned and, in testing, also available under `/api/v1/test_support/...`.
+- Clients should update their base path to `/api/v1`.

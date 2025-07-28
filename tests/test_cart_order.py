@@ -6,14 +6,15 @@ from models.cart import CartItem
 from models.order import Order, OrderItem
 from models.wallet import ConsumerWallet, WalletTransaction
 from models import db
+from app.version import API_PREFIX
 
 
 def send_otp(client, phone):
-    return client.post('/send-otp', json={'phone': phone})
+    return client.post(f"{API_PREFIX}/send-otp", json={'phone': phone})
 
 
 def verify_otp(client, phone, otp):
-    return client.post('/verify-otp', json={'phone': phone, 'otp': otp})
+    return client.post(f"{API_PREFIX}/verify-otp", json={'phone': phone, 'otp': otp})
 
 
 def obtain_token(client, app, phone):
@@ -31,8 +32,8 @@ def onboard_consumer(client, token):
         'society': 'Soc',
         'role': 'consumer'
     }
-    client.post('/onboarding/basic', json=basic, headers={'Authorization': token})
-    client.post('/onboarding/consumer', json={'flat_number': '1A'}, headers={'Authorization': token})
+    client.post(f"{API_PREFIX}/onboarding/basic", json=basic, headers={'Authorization': token})
+    client.post(f"{API_PREFIX}/onboarding/consumer", json={'flat_number': '1A'}, headers={'Authorization': token})
 
 
 def create_item(app, price=10.0):
@@ -47,11 +48,11 @@ def create_item(app, price=10.0):
 
 
 def add_to_cart_helper(client, token, item_id, qty):
-    return client.post('/cart/add', json={'item_id': item_id, 'quantity': qty}, headers={'Authorization': token})
+    return client.post(f"{API_PREFIX}/cart/add", json={'item_id': item_id, 'quantity': qty}, headers={'Authorization': token})
 
 
 def load_wallet(client, token, amount):
-    return client.post('/wallet/load', json={'amount': amount}, headers={'Authorization': token})
+    return client.post(f"{API_PREFIX}/wallet/load", json={'amount': amount}, headers={'Authorization': token})
 
 
 # -------------------- Cart Operations --------------------
@@ -70,7 +71,7 @@ def test_cart_add_view_update_remove_clear(client, app):
         assert ci and ci.quantity == 2
 
     # view cart
-    view = client.get('/cart/view', headers={'Authorization': token})
+    view = client.get('/api/v1/cart/view', headers={'Authorization': token})
     data = view.get_json()
     assert view.status_code == 200
     assert len(data['cart']) == 1
@@ -78,22 +79,22 @@ def test_cart_add_view_update_remove_clear(client, app):
     assert data['cart'][0]['item_id'] == item_id
 
     # update quantity
-    resp = client.post('/cart/update', json={'item_id': item_id, 'quantity': 3}, headers={'Authorization': token})
+    resp = client.post('/api/v1/cart/update', json={'item_id': item_id, 'quantity': 3}, headers={'Authorization': token})
     assert resp.status_code == 200
     with app.app_context():
         assert CartItem.query.filter_by(user_phone=phone, item_id=item_id).first().quantity == 3
 
     # remove item
-    resp = client.post('/cart/remove', json={'item_id': item_id}, headers={'Authorization': token})
+    resp = client.post('/api/v1/cart/remove', json={'item_id': item_id}, headers={'Authorization': token})
     assert resp.status_code == 200
     with app.app_context():
         assert CartItem.query.filter_by(user_phone=phone).count() == 0
 
     # add again then clear
     add_to_cart_helper(client, token, item_id, 1)
-    resp = client.post('/cart/clear', headers={'Authorization': token})
+    resp = client.post('/api/v1/cart/clear', headers={'Authorization': token})
     assert resp.status_code == 200
-    view = client.get('/cart/view', headers={'Authorization': token})
+    view = client.get('/api/v1/cart/view', headers={'Authorization': token})
     assert view.get_json()['cart'] == []
 
 
@@ -112,10 +113,10 @@ def test_cart_add_missing_fields(client, app):
     onboard_consumer(client, token)
     item_id, _ = create_item(app)
 
-    resp = client.post('/cart/add', json={'quantity': 1}, headers={'Authorization': token})
+    resp = client.post('/api/v1/cart/add', json={'quantity': 1}, headers={'Authorization': token})
     assert resp.status_code == 404
 
-    resp = client.post('/cart/add', json={'item_id': item_id, 'quantity': 0}, headers={'Authorization': token})
+    resp = client.post('/api/v1/cart/add', json={'item_id': item_id, 'quantity': 0}, headers={'Authorization': token})
     assert resp.status_code == 400
 
 
@@ -127,13 +128,13 @@ def test_update_cart_invalid_request(client, app):
 
     add_to_cart_helper(client, token, item_id, 1)
 
-    resp = client.post('/cart/update', json={'item_id': item_id, 'quantity': 0}, headers={'Authorization': token})
+    resp = client.post('/api/v1/cart/update', json={'item_id': item_id, 'quantity': 0}, headers={'Authorization': token})
     assert resp.status_code == 400
 
-    resp = client.post('/cart/update', json={'quantity': 2}, headers={'Authorization': token})
+    resp = client.post('/api/v1/cart/update', json={'quantity': 2}, headers={'Authorization': token})
     assert resp.status_code == 400
 
-    resp = client.post('/cart/update', json={'item_id': item_id + 1, 'quantity': 2}, headers={'Authorization': token})
+    resp = client.post('/api/v1/cart/update', json={'item_id': item_id + 1, 'quantity': 2}, headers={'Authorization': token})
     assert resp.status_code == 404
 
 
@@ -147,7 +148,7 @@ def test_confirm_order_wallet_and_cash(client, app):
 
     add_to_cart_helper(client, token, item_id, 2)  # total 30
     load_wallet(client, token, 50)
-    resp = client.post('/order/confirm', json={'payment_mode': 'wallet'}, headers={'Authorization': token})
+    resp = client.post('/api/v1/order/confirm', json={'payment_mode': 'wallet'}, headers={'Authorization': token})
     assert resp.status_code == 200
     order_id = resp.get_json()['order_id']
     with app.app_context():
@@ -160,11 +161,11 @@ def test_confirm_order_wallet_and_cash(client, app):
         assert OrderItem.query.filter_by(order_id=order_id).count() == 1
         assert WalletTransaction.query.filter_by(user_phone=phone, type='debit').count() == 1
         assert CartItem.query.filter_by(user_phone=phone).count() == 0
-    assert client.get('/cart/view', headers={'Authorization': token}).get_json()['cart'] == []
+    assert client.get('/api/v1/cart/view', headers={'Authorization': token}).get_json()['cart'] == []
 
     # cash mode
     add_to_cart_helper(client, token, item_id, 1)
-    resp = client.post('/order/confirm', json={'payment_mode': 'cash'}, headers={'Authorization': token})
+    resp = client.post('/api/v1/order/confirm', json={'payment_mode': 'cash'}, headers={'Authorization': token})
     assert resp.status_code == 200
     order_id2 = resp.get_json()['order_id']
     with app.app_context():
@@ -183,11 +184,11 @@ def test_confirm_order_errors(client, app):
     item_id, _ = create_item(app, price=10)
 
     # empty cart
-    resp = client.post('/order/confirm', json={'payment_mode': 'cash'}, headers={'Authorization': token})
+    resp = client.post('/api/v1/order/confirm', json={'payment_mode': 'cash'}, headers={'Authorization': token})
     assert resp.status_code == 400
 
     # insufficient wallet balance
     add_to_cart_helper(client, token, item_id, 5)  # total 50
     load_wallet(client, token, 20)
-    resp = client.post('/order/confirm', json={'payment_mode': 'wallet'}, headers={'Authorization': token})
+    resp = client.post('/api/v1/order/confirm', json={'payment_mode': 'wallet'}, headers={'Authorization': token})
     assert resp.status_code == 400
