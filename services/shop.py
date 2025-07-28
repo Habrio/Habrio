@@ -6,6 +6,8 @@ from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
 from models.user import UserProfile
 from models.vendor import VendorProfile
+import logging
+from utils.responses import internal_error_response
 
 # --- Create shop by vendor ---
 @auth_required
@@ -50,7 +52,12 @@ def create_shop():
     # Mark onboarding done after shop creation
     user.role_onboarding_done = True
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to create shop: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Shop created"}), 200
 
@@ -77,7 +84,12 @@ def edit_shop():
     shop.featured = data.get("featured", shop.featured)
     shop.verified = data.get("verified", shop.verified)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to edit shop: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Shop updated"}), 200
 
 # --- Get shop by vendor ---
@@ -169,7 +181,12 @@ def update_shop_hours():
         )
         db.session.add(new_hour)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to update shop hours: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Shop hours updated"}), 200
 
 # Toggle shop status --------------------
@@ -200,7 +217,12 @@ def toggle_shop_status():
 
     log = ShopActionLog(shop_id=shop.id, action=action, timestamp=timestamp)
     db.session.add(log)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to toggle shop status: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": f"Shop marked as {action}"}), 200
 

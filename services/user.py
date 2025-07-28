@@ -5,6 +5,8 @@ from models import db
 from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
 from datetime import datetime
+import logging
+from utils.responses import internal_error_response
 
 # Basic onboarding -------------
 @auth_required
@@ -34,7 +36,12 @@ def basic_onboarding():
     user.basic_onboarding_done = True
 
     db.session.add(user)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed basic onboarding: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Basic onboarding complete"}), 200
 
@@ -69,7 +76,12 @@ def consumer_onboarding():
 
     db.session.add(consumer_profile)
     user.role_onboarding_done = True
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed consumer onboarding: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Consumer onboarding done"}), 200
 
@@ -107,5 +119,10 @@ def edit_consumer_profile():
     profile.date_of_birth = data.get("date_of_birth", profile.date_of_birth)
     profile.preferred_language = data.get("preferred_language", profile.preferred_language)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to edit consumer profile: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Profile updated"}), 200

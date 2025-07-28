@@ -1,4 +1,5 @@
 import os
+import logging
 
 merged_file = "merged_app.py"
 included_files = set()
@@ -35,4 +36,4 @@ output.extend(collect_code_from("main.py"))
 with open(merged_file, "w") as f:
     f.writelines(output)
 
-print(f"✅ Merged into {merged_file}")
+logging.info("✅ Merged into %s", merged_file)

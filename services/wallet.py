@@ -13,6 +13,8 @@ from models.vendor import VendorPayoutBank
 from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
 from decimal import Decimal
+import logging
+from utils.responses import internal_error_response
 
 
 # ------------------- Get or Create Consumer Wallet -------------------
@@ -24,7 +26,12 @@ def get_or_create_wallet():
     if not wallet:
         wallet = ConsumerWallet(user_phone=user.phone, balance=Decimal("0.00"))
         db.session.add(wallet)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logging.error("Failed to create wallet: %s", e, exc_info=True)
+            return internal_error_response()
     return jsonify({"status": "success", "balance": float(wallet.balance)}), 200
 
 
@@ -64,7 +71,12 @@ def load_wallet():
         reference=reference,
         status="success"
     ))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to load wallet: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "balance": float(wallet.balance)}), 200
 
 
@@ -89,7 +101,12 @@ def debit_wallet():
         reference=reference,
         status="success"
     ))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to debit wallet: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "balance": float(wallet.balance)}), 200
 
 
@@ -116,7 +133,12 @@ def refund_wallet():
         reference=reference,
         status="success"
     ))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to refund wallet: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "balance": float(wallet.balance)}), 200
 
 
@@ -129,7 +151,12 @@ def get_vendor_wallet():
     if not wallet:
         wallet = VendorWallet(user_phone=user.phone, balance=Decimal("0.00"))
         db.session.add(wallet)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logging.error("Failed to create vendor wallet: %s", e, exc_info=True)
+            return internal_error_response()
     return jsonify({"status": "success", "balance": float(wallet.balance)}), 200
 
 
@@ -169,7 +196,12 @@ def credit_vendor_wallet():
         reference=reference,
         status="success"
     ))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to credit vendor wallet: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "balance": float(wallet.balance)}), 200
 
 
@@ -194,7 +226,12 @@ def debit_vendor_wallet():
         reference=reference,
         status="success"
     ))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to debit vendor wallet: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "balance": float(wallet.balance)}), 200
 
 
@@ -225,7 +262,12 @@ def withdraw_vendor_wallet():
         reference=f"Withdraw to {bank.account_number}",
         status="success"
     ))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to withdraw vendor wallet: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({
         "status": "success",

@@ -6,6 +6,8 @@ from models.wallet import VendorWallet, VendorWalletTransaction, ConsumerWallet,
 from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
 from decimal import Decimal
+import logging
+from utils.responses import internal_error_response
 
 # ------------------- Vendor: View Orders -------------------
 @auth_required
@@ -87,7 +89,12 @@ def update_order_status(order_id):
     db.session.add(OrderStatusLog(order_id=order.id, status=new_status, updated_by=user.phone))
     db.session.add(OrderActionLog(order_id=order.id, action_type="status_updated", actor_phone=user.phone, details=f"Order status updated to {new_status}"))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to update order status: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": f"Order marked as {new_status}"}), 200
 
 # ------------------- Vendor: Cancel Order -------------------
@@ -124,7 +131,12 @@ def cancel_order_vendor(order_id):
     db.session.add(OrderActionLog(order_id=order.id, action_type="order_cancelled", actor_phone=user.phone, details="Cancelled by vendor"))
     db.session.add(OrderMessage(order_id=order.id, sender_phone=user.phone, message="Order cancelled by shop."))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to cancel order by vendor: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Order cancelled", "refund": float(refund_amount)}), 200
 
 
@@ -173,7 +185,12 @@ def modify_order_item(order_id):
     db.session.add(OrderActionLog(order_id=order.id, action_type="vendor_modified", actor_phone=user.phone, details="; ".join(update_log)))
     db.session.add(OrderMessage(order_id=order.id, sender_phone=user.phone, message="Order modified. Awaiting your confirmation."))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to modify order items: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Order modified", "new_total": float(updated_total)}), 200
 
 
@@ -204,7 +221,13 @@ def send_order_message_vendor(order_id):
         actor_phone=user.phone,
         details=message
     ))
-    db.session.commit()
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to send vendor order message: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Message sent"}), 200
 
@@ -271,7 +294,12 @@ def vendor_initiate_return(order_id):
     order.status = "return_accepted"
     db.session.add(OrderStatusLog(order_id=order.id, status="return_accepted", updated_by=user.phone))
     db.session.add(OrderActionLog(order_id=order.id, action_type="vendor_forced_return", actor_phone=user.phone, details=f"{len(items)} item(s) returned. Reason: {reason}"))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to initiate return: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Return initiated and accepted"}), 200
 
@@ -298,7 +326,12 @@ def accept_return(order_id):
     order.status = "return_accepted"
     db.session.add(OrderStatusLog(order_id=order.id, status="return_accepted", updated_by=user.phone))
     db.session.add(OrderActionLog(order_id=order.id, action_type="return_accepted", actor_phone=user.phone, details="Vendor accepted the return request"))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to accept return: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Return request accepted"}), 200
 
@@ -355,5 +388,10 @@ def complete_return(order_id):
             status="success"
         ))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to complete return: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Return marked as completed"}), 200

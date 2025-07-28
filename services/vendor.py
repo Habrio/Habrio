@@ -5,6 +5,8 @@ from models import db
 from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
 from datetime import datetime
+import logging
+from utils.responses import internal_error_response
 
 
 # Vendor Onboarding -----------------
@@ -39,7 +41,12 @@ def vendor_profile_setup():
         kyc_status="pending"
     )
     db.session.add(profile)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to create vendor profile: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Vendor profile created"}), 200
 
@@ -63,7 +70,12 @@ def upload_vendor_document():
         file_url=file_url
     )
     db.session.add(new_doc)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to upload vendor document: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Document uploaded"}), 200
 
@@ -89,6 +101,11 @@ def setup_payout_bank():
     existing.ifsc_code = data["ifsc_code"]
     existing.updated_at = datetime.utcnow()
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to setup payout bank: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Payout bank info saved"}), 200
