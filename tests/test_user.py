@@ -1,14 +1,15 @@
 import pytest
 from models.user import OTP, UserProfile, ConsumerProfile
 from models import db
+from app.version import API_PREFIX
 
 
 def send_otp(client, phone):
-    return client.post('/send-otp', json={'phone': phone})
+    return client.post(f"{API_PREFIX}/send-otp", json={'phone': phone})
 
 
 def verify_otp(client, phone, otp):
-    return client.post('/verify-otp', json={'phone': phone, 'otp': otp})
+    return client.post(f"{API_PREFIX}/verify-otp", json={'phone': phone, 'otp': otp})
 
 
 def do_basic_onboarding(client, token, name='User', city='Town', society='Society', role='consumer'):
@@ -18,19 +19,19 @@ def do_basic_onboarding(client, token, name='User', city='Town', society='Societ
         'society': society,
         'role': role
     }
-    return client.post('/onboarding/basic', json=payload, headers={'Authorization': token})
+    return client.post(f"{API_PREFIX}/onboarding/basic", json=payload, headers={'Authorization': token})
 
 
 def do_consumer_onboarding(client, token, **extra):
-    return client.post('/onboarding/consumer', json=extra, headers={'Authorization': token})
+    return client.post(f"{API_PREFIX}/onboarding/consumer", json=extra, headers={'Authorization': token})
 
 
 def get_profile(client, token):
-    return client.get('/profile/me', headers={'Authorization': token})
+    return client.get(f"{API_PREFIX}/profile/me", headers={'Authorization': token})
 
 
 def edit_profile(client, token, data):
-    return client.post('/profile/edit', json=data, headers={'Authorization': token})
+    return client.post(f"{API_PREFIX}/profile/edit", json=data, headers={'Authorization': token})
 
 
 
@@ -59,7 +60,7 @@ def test_basic_onboarding_success(client, app):
 def test_basic_onboarding_missing_fields(client, app):
     phone = '9900022222'
     token = obtain_token(client, app, phone)
-    resp = client.post('/onboarding/basic', json={'name': 'Bob'}, headers={'Authorization': token})
+    resp = client.post('/api/v1/onboarding/basic', json={'name': 'Bob'}, headers={'Authorization': token})
     assert resp.status_code == 400
     assert resp.get_json()['message'] == 'Missing fields'
 

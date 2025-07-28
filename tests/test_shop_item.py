@@ -6,14 +6,15 @@ from models.shop import Shop
 from models.vendor import VendorProfile
 from models.item import Item
 from models import db
+from app.version import API_PREFIX
 
 
 def send_otp(client, phone):
-    return client.post('/send-otp', json={'phone': phone})
+    return client.post(f"{API_PREFIX}/send-otp", json={'phone': phone})
 
 
 def verify_otp(client, phone, otp):
-    return client.post('/verify-otp', json={'phone': phone, 'otp': otp})
+    return client.post(f"{API_PREFIX}/verify-otp", json={'phone': phone, 'otp': otp})
 
 
 def obtain_token(client, app, phone):
@@ -31,7 +32,7 @@ def do_basic_onboarding(client, token, role='vendor'):
         'society': 'Society',
         'role': role
     }
-    return client.post('/onboarding/basic', json=payload, headers={'Authorization': token})
+    return client.post(f"{API_PREFIX}/onboarding/basic", json=payload, headers={'Authorization': token})
 
 
 def setup_vendor_with_profile(client, app, phone):
@@ -42,18 +43,18 @@ def setup_vendor_with_profile(client, app, phone):
         'business_name': f'Shop{phone[-2:]}',
         'address': 'Addr'
     }
-    client.post('/vendor/profile', json=profile_payload, headers={'Authorization': token})
+    client.post(f"{API_PREFIX}/vendor/profile", json=profile_payload, headers={'Authorization': token})
     return token
 
 
 def create_shop_for_vendor(client, token, name='MyShop'):
     payload = {'shop_name': name, 'shop_type': 'grocery'}
-    return client.post('/vendor/create-shop', json=payload, headers={'Authorization': token})
+    return client.post(f"{API_PREFIX}/vendor/create-shop", json=payload, headers={'Authorization': token})
 
 
 def add_item_for_vendor(client, token, title='Item', price=1.0):
     payload = {'title': title, 'price': price}
-    return client.post('/item/add', json=payload, headers={'Authorization': token})
+    return client.post(f"{API_PREFIX}/item/add", json=payload, headers={'Authorization': token})
 
 
 def test_create_shop_success_and_duplicate(client, app):
@@ -87,7 +88,7 @@ def test_edit_shop_success_and_not_found(client, app):
     token = setup_vendor_with_profile(client, app, phone)
     create_shop_for_vendor(client, token, 'EditShop')
 
-    resp = client.post('/shop/edit', json={'description': 'New', 'is_open': False}, headers={'Authorization': token})
+    resp = client.post('/api/v1/shop/edit', json={'description': 'New', 'is_open': False}, headers={'Authorization': token})
     assert resp.status_code == 200
     with app.app_context():
         shop = Shop.query.filter_by(phone=phone).first()
@@ -96,7 +97,7 @@ def test_edit_shop_success_and_not_found(client, app):
 
     phone2 = '8100000004'
     token2 = setup_vendor_with_profile(client, app, phone2)
-    resp_nf = client.post('/shop/edit', json={'description': 'X'}, headers={'Authorization': token2})
+    resp_nf = client.post('/api/v1/shop/edit', json={'description': 'X'}, headers={'Authorization': token2})
     assert resp_nf.status_code == 404
     assert resp_nf.get_json()['message'] == 'Shop not found'
 
@@ -106,17 +107,17 @@ def test_toggle_shop_status(client, app):
     token = setup_vendor_with_profile(client, app, phone)
     create_shop_for_vendor(client, token, 'ToggleShop')
 
-    resp_close = client.post('/vendor/shop/toggle_status', json={'is_open': False}, headers={'Authorization': token})
+    resp_close = client.post('/api/v1/vendor/shop/toggle_status', json={'is_open': False}, headers={'Authorization': token})
     assert resp_close.status_code == 200
     with app.app_context():
         assert Shop.query.filter_by(phone=phone).first().is_open is False
 
-    resp_open = client.post('/vendor/shop/toggle_status', json={'is_open': True}, headers={'Authorization': token})
+    resp_open = client.post('/api/v1/vendor/shop/toggle_status', json={'is_open': True}, headers={'Authorization': token})
     assert resp_open.status_code == 200
     with app.app_context():
         assert Shop.query.filter_by(phone=phone).first().is_open is True
 
-    resp_invalid = client.post('/vendor/shop/toggle_status', json={'is_open': 'yes'}, headers={'Authorization': token})
+    resp_invalid = client.post('/api/v1/vendor/shop/toggle_status', json={'is_open': 'yes'}, headers={'Authorization': token})
     assert resp_invalid.status_code == 400
     assert resp_invalid.get_json()['message'] == 'Invalid is_open value'
 
@@ -133,7 +134,7 @@ def test_add_item_success_and_errors(client, app):
         item = Item.query.filter_by(shop_id=shop.id).first()
         assert item.title == 'Item1'
 
-    resp_missing = client.post('/item/add', json={'title': 'NoPrice'}, headers={'Authorization': token})
+    resp_missing = client.post('/api/v1/item/add', json={'title': 'NoPrice'}, headers={'Authorization': token})
     assert resp_missing.status_code == 400
 
     phone2 = '8100000007'
@@ -152,20 +153,20 @@ def test_update_item(client, app):
         shop = Shop.query.filter_by(phone=phone).first()
         item_id = Item.query.filter_by(shop_id=shop.id).first().id
 
-    resp = client.post(f'/item/update/{item_id}', json={'price': 8, 'quantity_in_stock': 10}, headers={'Authorization': token})
+    resp = client.post(f'/api/v1/item/update/{item_id}', json={'price': 8, 'quantity_in_stock': 10}, headers={'Authorization': token})
     assert resp.status_code == 200
     with app.app_context():
         item = Item.query.get(item_id)
         assert item.price == 8
         assert item.quantity_in_stock == 10
 
-    resp_bad = client.post(f'/item/update/{item_id + 999}', json={'price': 9}, headers={'Authorization': token})
+    resp_bad = client.post(f'/api/v1/item/update/{item_id + 999}', json={'price': 9}, headers={'Authorization': token})
     assert resp_bad.status_code == 404
 
     phone2 = '8100000009'
     token2 = setup_vendor_with_profile(client, app, phone2)
     create_shop_for_vendor(client, token2, 'OtherShop')
-    resp_unauth = client.post(f'/item/update/{item_id}', json={'price': 7}, headers={'Authorization': token2})
+    resp_unauth = client.post(f'/api/v1/item/update/{item_id}', json={'price': 7}, headers={'Authorization': token2})
     assert resp_unauth.status_code == 404
 
 
@@ -179,12 +180,12 @@ def test_toggle_item_availability(client, app):
         item_id = Item.query.filter_by(shop_id=shop.id).first().id
         assert Item.query.get(item_id).is_available is True
 
-    resp1 = client.post(f'/item/{item_id}/toggle', headers={'Authorization': token})
+    resp1 = client.post(f'/api/v1/item/{item_id}/toggle', headers={'Authorization': token})
     assert resp1.status_code == 200
     with app.app_context():
         assert Item.query.get(item_id).is_available is False
 
-    resp2 = client.post(f'/item/{item_id}/toggle', headers={'Authorization': token})
+    resp2 = client.post(f'/api/v1/item/{item_id}/toggle', headers={'Authorization': token})
     assert resp2.status_code == 200
     with app.app_context():
         assert Item.query.get(item_id).is_available is True
@@ -192,7 +193,7 @@ def test_toggle_item_availability(client, app):
     phone2 = '8100000011'
     token2 = setup_vendor_with_profile(client, app, phone2)
     create_shop_for_vendor(client, token2, 'Shop2')
-    resp_unauth = client.post(f'/item/{item_id}/toggle', headers={'Authorization': token2})
+    resp_unauth = client.post(f'/api/v1/item/{item_id}/toggle', headers={'Authorization': token2})
     assert resp_unauth.status_code == 404
 
 
@@ -203,7 +204,7 @@ def test_get_items(client, app):
     add_item_for_vendor(client, token, 'L1', 1)
     add_item_for_vendor(client, token, 'L2', 2)
 
-    resp = client.get('/item/my', headers={'Authorization': token})
+    resp = client.get('/api/v1/item/my', headers={'Authorization': token})
     assert resp.status_code == 200
     data = resp.get_json()['data']
     assert len(data) == 2
@@ -212,7 +213,7 @@ def test_get_items(client, app):
 
     phone2 = '8100000013'
     token2 = setup_vendor_with_profile(client, app, phone2)
-    resp_no_shop = client.get('/item/my', headers={'Authorization': token2})
+    resp_no_shop = client.get('/api/v1/item/my', headers={'Authorization': token2})
     assert resp_no_shop.status_code == 404
     assert resp_no_shop.get_json()['message'] == 'Shop not found'
 
@@ -226,14 +227,14 @@ def test_bulk_upload_items(client, app):
     csv_io = io.BytesIO()
     csv_io.write(df.to_csv(index=False).encode())
     csv_io.seek(0)
-    resp = client.post('/item/bulk-upload', data={'file': (csv_io, 'items.csv')}, headers={'Authorization': token}, content_type='multipart/form-data')
+    resp = client.post('/api/v1/item/bulk-upload', data={'file': (csv_io, 'items.csv')}, headers={'Authorization': token}, content_type='multipart/form-data')
     assert resp.status_code == 200
     assert '2 items uploaded' in resp.get_json()['message']
     with app.app_context():
         shop = Shop.query.filter_by(phone=phone).first()
         assert Item.query.filter_by(shop_id=shop.id).count() == 2
 
-    resp_ext = client.post('/item/bulk-upload', data={'file': (io.BytesIO(b'abc'), 'items.txt')}, headers={'Authorization': token}, content_type='multipart/form-data')
+    resp_ext = client.post('/api/v1/item/bulk-upload', data={'file': (io.BytesIO(b'abc'), 'items.txt')}, headers={'Authorization': token}, content_type='multipart/form-data')
     assert resp_ext.status_code == 400
     assert resp_ext.get_json()['message'] == 'Unsupported file type'
 
@@ -241,7 +242,7 @@ def test_bulk_upload_items(client, app):
     csv_io2 = io.BytesIO()
     csv_io2.write(df2.to_csv(index=False).encode())
     csv_io2.seek(0)
-    resp_missing = client.post('/item/bulk-upload', data={'file': (csv_io2, 'bad.csv')}, headers={'Authorization': token}, content_type='multipart/form-data')
+    resp_missing = client.post('/api/v1/item/bulk-upload', data={'file': (csv_io2, 'bad.csv')}, headers={'Authorization': token}, content_type='multipart/form-data')
     assert resp_missing.status_code == 400
     assert 'Missing columns' in resp_missing.get_json()['message']
 
