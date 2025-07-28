@@ -208,7 +208,7 @@ def get_shop_orders():
 # ------------------- Vendor: Update Order Status -------------------
 
 @auth_required
-@role_required("vendor")
+@role_required("vendor:deliver_order")
 def update_order_status(order_id):
     user = request.user
     data = request.get_json()
@@ -226,7 +226,7 @@ def update_order_status(order_id):
 
 # ------------------- Vendor: Cancel Order -------------------
 @auth_required
-@role_required("vendor")
+@role_required("vendor:cancel_order_vendor")
 def cancel_order_vendor(order_id):
     user = request.user
     order = Order.query.get(order_id)
@@ -242,7 +242,7 @@ def cancel_order_vendor(order_id):
 
 # ------------------- Vendor: Modify Order -------------------
 @auth_required
-@role_required("vendor")
+@role_required("vendor:modify_order")
 def modify_order_item(order_id):
     user = request.user
     data = request.get_json()

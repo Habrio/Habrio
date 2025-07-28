@@ -39,3 +39,7 @@ Set `ALLOW_DB_MIGRATIONS=true` in production to permit upgrades or stamping.
 * Access token (lifetime ≈ 15 min) – send via `Authorization: Bearer <token>`.
 * Refresh token (lifetime ≈ 30 days) – POST to `/api/v1/auth/refresh` to obtain new pair.
 * Tokens are signed HS256 with `JWT_SECRET`.
+### Role-scoped permissions (Step 9)
+Decorators now accept `role:action` scopes, e.g.:
+  @role_required("vendor:modify_order")
+Actions are defined in `app/auth/permissions.py`. `admin` has wildcard `*`.

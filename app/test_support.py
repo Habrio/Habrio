@@ -1,5 +1,7 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from app.utils.responses import ok, error
+from utils.auth_decorator import auth_required
+from utils.role_decorator import role_required
 import logging
 from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance, InsufficientFunds
 from helpers.jwt_helpers import create_access_token, create_refresh_token
@@ -23,6 +25,14 @@ test_support_bp = Blueprint("test_support_bp", __name__)
 
 @test_support_bp.route("/__ok", methods=["GET"])
 def __ok():
+    auth = request.headers.get("Authorization")
+    if auth:
+        from helpers.jwt_helpers import decode_token, TokenError
+        token = auth.split(" ", 1)[1] if auth.startswith("Bearer ") else auth
+        try:
+            decode_token(token, expected_type="access")
+        except TokenError as e:
+            return jsonify({"status": "error", "message": str(e)}), 401
     return ok({"ping": "pong"})
 
 
@@ -322,3 +332,17 @@ def __vendor_return_complete(order_id):
     if not order:
         return error("not found", 404)
     return _vendor_complete_return_core(u, order)
+
+
+@test_support_bp.route("/vendor_scope_ping", methods=["POST"])
+@auth_required
+@role_required("vendor:modify_order")
+def _vendor_scope_ping():
+    return ok({"pong": "vendor_modify_ok"})
+
+
+@test_support_bp.route("/vendor/dummy_deliver", methods=["POST"])
+@auth_required
+@role_required("vendor:deliver_order")
+def _dummy_deliver():
+    return ok({"delivered": True})

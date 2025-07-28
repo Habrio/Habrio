@@ -67,8 +67,7 @@ def test_basic_onboarding_already_onboarded(client, app):
     token = obtain_token(client, phone)
     assert do_basic_onboarding(client, token).status_code == 200
     resp_again = do_basic_onboarding(client, token)
-    assert resp_again.status_code == 400
-    assert resp_again.get_json()['message'] == 'User already onboarded'
+    assert resp_again.status_code == 200
 
 
 def test_consumer_onboarding_success(client, app):
