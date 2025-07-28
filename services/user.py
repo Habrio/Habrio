@@ -1,6 +1,6 @@
 # --- services/user.py ---
 from flask import request, jsonify
-from models.user import UserProfile, ConsumerProfile
+from models.user import ConsumerProfile
 from models import db
 from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
@@ -11,6 +11,7 @@ from utils.responses import internal_error_response
 # Basic onboarding -------------
 @auth_required
 def basic_onboarding():
+    """Complete initial onboarding details for the authenticated user."""
     data = request.get_json()
     required_fields = ["name", "city", "society", "role"]
     if not all(field in data for field in required_fields):
@@ -19,15 +20,12 @@ def basic_onboarding():
     phone = request.phone
     role = data["role"]
 
-    user = UserProfile.query.filter_by(phone=phone).first()
+    user = request.user
 
-    if user:
-        if user.basic_onboarding_done:
-            return jsonify({"status": "error", "message": "User already onboarded"}), 400
-        if user.role and user.role != role:
-            return jsonify({"status": "error", "message": "Role mismatch"}), 400
-    else:
-        user = UserProfile(phone=phone)
+    if user.basic_onboarding_done:
+        return jsonify({"status": "error", "message": "User already onboarded"}), 400
+    if user.role and user.role != role:
+        return jsonify({"status": "error", "message": "Role mismatch"}), 400
 
     user.name = data["name"]
     user.city = data["city"]
@@ -50,7 +48,7 @@ def basic_onboarding():
 @auth_required
 @role_required(["consumer"])
 def consumer_onboarding():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    user = request.user
     if not user or not user.basic_onboarding_done:
         return jsonify({"status": "error", "message": "Basic onboarding incomplete"}), 400
     if user.role_onboarding_done:
@@ -90,7 +88,7 @@ def consumer_onboarding():
 @auth_required
 @role_required(["consumer"])
 def get_consumer_profile():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    user = request.user
     if not user:
         return jsonify({"status": "error", "message": "User not found"}), 404
 
@@ -105,7 +103,7 @@ def get_consumer_profile():
 @auth_required
 @role_required(["consumer"])
 def edit_consumer_profile():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    user = request.user
     profile = ConsumerProfile.query.filter_by(user_phone=user.phone).first()
 
     if not profile:

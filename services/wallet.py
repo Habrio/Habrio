@@ -2,7 +2,6 @@
 
 from flask import request, jsonify
 from models import db
-from models.user import UserProfile
 from models.wallet import (
     ConsumerWallet,
     WalletTransaction,
@@ -21,7 +20,8 @@ from utils.responses import internal_error_response
 @auth_required
 @role_required(["consumer"])
 def get_or_create_wallet():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    """Return the consumer wallet for the authenticated user, creating one if needed."""
+    user = request.user
     wallet = ConsumerWallet.query.filter_by(user_phone=user.phone).first()
     if not wallet:
         wallet = ConsumerWallet(user_phone=user.phone, balance=Decimal("0.00"))
@@ -49,7 +49,8 @@ def wallet_transaction_history():
 @auth_required
 @role_required(["consumer"])
 def load_wallet():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    """Add funds to the authenticated consumer's wallet."""
+    user = request.user
     data = request.get_json()
     amount = Decimal(str(data.get("amount", "0")))
     reference = data.get("reference", "manual-load")
@@ -84,7 +85,8 @@ def load_wallet():
 @auth_required
 @role_required(["consumer"])
 def debit_wallet():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    """Deduct funds from the authenticated consumer's wallet."""
+    user = request.user
     data = request.get_json()
     amount = Decimal(str(data.get("amount", "0")))
     reference = data.get("reference", "manual-debit")
@@ -114,7 +116,8 @@ def debit_wallet():
 @auth_required
 @role_required(["consumer"])
 def refund_wallet():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    """Refund an amount back to the consumer's wallet, creating it if needed."""
+    user = request.user
     data = request.get_json()
     amount = Decimal(str(data.get("amount", "0")))
     reference = data.get("reference", "manual-refund")
@@ -146,7 +149,8 @@ def refund_wallet():
 @auth_required
 @role_required(["vendor"])
 def get_vendor_wallet():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    """Return or create the vendor wallet for the authenticated vendor."""
+    user = request.user
     wallet = VendorWallet.query.filter_by(user_phone=user.phone).first()
     if not wallet:
         wallet = VendorWallet(user_phone=user.phone, balance=Decimal("0.00"))
@@ -174,7 +178,8 @@ def get_vendor_wallet_history():
 @auth_required
 @role_required(["vendor"])
 def credit_vendor_wallet():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    """Credit the vendor's wallet with the provided amount."""
+    user = request.user
     data = request.get_json()
     amount = Decimal(str(data.get("amount", "0")))
     reference = data.get("reference", "manual-credit")
@@ -209,7 +214,8 @@ def credit_vendor_wallet():
 @auth_required
 @role_required(["vendor"])
 def debit_vendor_wallet():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    """Debit the vendor's wallet if sufficient balance exists."""
+    user = request.user
     data = request.get_json()
     amount = Decimal(str(data.get("amount", "0")))
     reference = data.get("reference", "manual-debit")
@@ -239,7 +245,8 @@ def debit_vendor_wallet():
 @auth_required
 @role_required(["vendor"])
 def withdraw_vendor_wallet():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    """Withdraw from the vendor wallet to the configured payout bank."""
+    user = request.user
     data = request.get_json()
     amount = Decimal(str(data.get("amount", "0")))
 
