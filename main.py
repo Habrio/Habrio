@@ -17,6 +17,7 @@ from app.config import get_config_class
 import os
 import logging
 from flask_cors import CORS
+from app.errors import errors_bp
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -27,6 +28,12 @@ app.config.from_object(get_config_class())
 
 # This will allow all origins by default
 CORS(app)
+
+app.register_blueprint(errors_bp)
+
+if app.config.get("TESTING"):
+    from app.test_support import test_support_bp
+    app.register_blueprint(test_support_bp)
 
 db.init_app(app)
 with app.app_context():
