@@ -18,6 +18,9 @@ import os
 import logging
 from flask_cors import CORS
 from app.errors import errors_bp
+from app.logging import configure_logging
+from flask import request, g
+import uuid
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -25,6 +28,7 @@ load_dotenv()
 # Create app and load configuration
 app = Flask(__name__)
 app.config.from_object(get_config_class())
+configure_logging(app)
 
 # This will allow all origins by default
 CORS(app)
@@ -34,6 +38,24 @@ app.register_blueprint(errors_bp)
 if app.config.get("TESTING"):
     from app.test_support import test_support_bp
     app.register_blueprint(test_support_bp)
+
+@app.before_request
+def _set_request_id():
+    incoming = request.headers.get("X-Request-ID")
+    rid = (incoming or uuid.uuid4().hex)[:100]
+    g.request_id = rid
+    app.logger.info(f"request start {request.method} {request.path}")
+
+
+@app.after_request
+def _add_request_id_header(resp):
+    try:
+        rid = getattr(g, "request_id", None)
+        if rid:
+            resp.headers["X-Request-ID"] = rid
+    except Exception:
+        pass
+    return resp
 
 db.init_app(app)
 with app.app_context():
@@ -127,13 +149,6 @@ app.add_url_rule("/order/vendor/issues", view_func=vendor_order_services.get_iss
 app.add_url_rule("/order/return/vendor/accept/<int:order_id>", view_func=vendor_order_services.accept_return, methods=["POST"])
 app.add_url_rule("/order/return/complete/<int:order_id>", view_func=vendor_order_services.complete_return, methods=["POST"])
 app.add_url_rule("/order/return/vendor/initiate/<int:order_id>", view_func=vendor_order_services.vendor_initiate_return, methods=["POST"])
-
-# ========================== Logging ==========================
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
-)
 
 # ========================== Run ==========================
 if __name__ == "__main__":
