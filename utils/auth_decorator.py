@@ -9,9 +9,9 @@ def auth_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         auth = request.headers.get("Authorization", "")
-        if not auth.startswith("Bearer "):
+        if not auth:
             return jsonify({"status": "error", "message": "Auth header missing"}), 401
-        token = auth.split(" ", 1)[1]
+        token = auth.split(" ", 1)[1] if auth.startswith("Bearer ") else auth
         try:
             payload = decode_token(token, expected_type="access")
         except TokenError as e:

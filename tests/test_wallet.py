@@ -5,7 +5,7 @@ from models import db
 from app.version import API_PREFIX
 
 
-def obtain_token(client, phone, role="consumer"):
+def obtain_token(client, phone, role="consumer", *args):
     resp = client.post("/__auth/login_stub", json={"phone": phone, "role": role})
     return resp.get_json()["data"]["access"]
 
@@ -196,7 +196,7 @@ def test_debit_vendor_wallet_success_and_insufficient(client, app):
 
 def test_withdraw_vendor_wallet(client, app):
     phone = '7100000004'
-    token = obtain_token(client, app, phone)
+    token = obtain_token(client, phone)
     onboard_vendor(client, token)
     setup_payout_bank(client, token)
     client.post('/api/v1/vendor/wallet/credit', json={'amount': 100}, headers={'Authorization': f'Bearer {token}'})

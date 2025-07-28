@@ -23,9 +23,7 @@ def basic_onboarding():
     user = request.user
 
     if user.basic_onboarding_done:
-        return jsonify({"status": "error", "message": "User already onboarded"}), 400
-    if user.role and user.role != role:
-        return jsonify({"status": "error", "message": "Role mismatch"}), 400
+        return jsonify({"status": "success", "message": "Basic onboarding already complete"}), 200
 
     user.name = data["name"]
     user.city = data["city"]

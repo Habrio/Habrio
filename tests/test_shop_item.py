@@ -8,7 +8,7 @@ from models import db
 from app.version import API_PREFIX
 
 
-def obtain_token(client, phone):
+def obtain_token(client, phone, *args):
     resp = client.post("/__auth/login_stub", json={"phone": phone, "role": "vendor"})
     return resp.get_json()["data"]["access"]
 
@@ -64,7 +64,7 @@ def test_create_shop_success_and_duplicate(client, app):
     assert resp_dup.get_json()['message'] == 'Shop already exists for this vendor'
 
     phone2 = '8100000002'
-    token2 = obtain_token(client, app, phone2)
+    token2 = obtain_token(client, phone2)
     do_basic_onboarding(client, token2, role='vendor')
     resp_no_profile = create_shop_for_vendor(client, token2, 'NoProfile')
     assert resp_no_profile.status_code == 400
