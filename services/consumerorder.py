@@ -7,6 +7,8 @@ from models.order import Order, OrderItem, OrderStatusLog, OrderActionLog, Order
 from datetime import datetime
 from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
+import logging
+from utils.responses import internal_error_response
 
 # ------------------- Confirm Order -------------------
 @auth_required
@@ -74,7 +76,12 @@ def confirm_order():
     db.session.add(OrderStatusLog(order_id=new_order.id, status="pending", updated_by=user.phone))
     db.session.add(OrderActionLog(order_id=new_order.id, action_type="order_created", actor_phone=user.phone, details="Order placed"))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to confirm order: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Order placed successfully", "order_id": new_order.id}), 200
 
 
@@ -120,7 +127,12 @@ def confirm_modified_order(order_id):
         message="I’ve confirmed the changes. Please proceed."
     ))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to confirm modified order: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Modified order confirmed", "refund": float(refund_amount)}), 200
 
 
@@ -153,7 +165,12 @@ def cancel_order_consumer(order_id):
     db.session.add(OrderActionLog(order_id=order.id, action_type="order_cancelled", actor_phone=user.phone, details="Cancelled by consumer"))
     db.session.add(OrderMessage(order_id=order.id, sender_phone=user.phone, message="Order cancelled by you."))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to cancel order: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Order cancelled", "refund": float(refund_amount)}), 200
 
 
@@ -173,7 +190,12 @@ def send_order_message_consumer(order_id):
 
     db.session.add(OrderMessage(order_id=order_id, sender_phone=user.phone, message=message))
     db.session.add(OrderActionLog(order_id=order_id, action_type="message_sent", actor_phone=user.phone, details=message))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to send order message: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Message sent"}), 200
 
@@ -265,7 +287,12 @@ def rate_order(order_id):
         details=f"Rated {rating}/5. {review}" if review else f"Rated {rating}/5"
     ))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to rate order: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({
         "status": "success",
@@ -311,7 +338,12 @@ def raise_order_issue(order_id):
         message=f"Issue raised: {issue_type}\n{description}"
     ))
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to raise order issue: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Issue raised"}), 200
 
 # ------------------- Request return -------------------
@@ -346,6 +378,11 @@ def request_return(order_id):
         action_type="return_requested",
         details=f"{len(items)} item(s) requested for return. Reason: {reason}"
     ))
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to request return: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Return request sent"}), 200

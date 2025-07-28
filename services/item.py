@@ -9,6 +9,8 @@ from datetime import datetime
 import pandas as pd
 from werkzeug.utils import secure_filename
 import os
+import logging
+from utils.responses import internal_error_response
 
 @auth_required
 @role_required(["vendor"])
@@ -45,7 +47,12 @@ def add_item():
     )
 
     db.session.add(item)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to add item: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Item added"}), 200
 
@@ -60,7 +67,12 @@ def toggle_item_availability(item_id):
         return jsonify({"status": "error", "message": "Item not found or unauthorized"}), 404
 
     item.is_available = not item.is_available
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to toggle item availability: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Item availability updated"}), 200
 
@@ -91,7 +103,12 @@ def update_item(item_id):
     item.image_url = data.get("image_url", item.image_url)
     item.updated_at = datetime.utcnow()
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to update item: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Item updated"}), 200
 
 @auth_required
@@ -183,7 +200,12 @@ def bulk_upload_items():
         except Exception:
             continue
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to bulk upload items: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": f"{created} items uploaded"}), 200
 
 

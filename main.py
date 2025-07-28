@@ -31,7 +31,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 with app.app_context():
     db.create_all()
-    print("✅ Tables created")
+    logging.info("✅ Tables created")
 
 # ========================== Health Check ==========================
 @app.route("/health")

@@ -6,6 +6,8 @@ from models.user import UserProfile
 from models import db
 from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
+import logging
+from utils.responses import internal_error_response
 
 MAX_QUANTITY_PER_ITEM = 10  # Set your max quantity per item limit here
 
@@ -43,7 +45,12 @@ def add_to_cart():
         cart_item = CartItem(user_phone=phone, item_id=item_id, shop_id=item.shop_id, quantity=quantity)
         db.session.add(cart_item)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to add to cart: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Item added to cart"}), 200
 
 
@@ -67,7 +74,12 @@ def update_cart_quantity():
         return jsonify({"status": "error", "message": "Item not found in cart"}), 404
 
     cart_item.quantity = quantity
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to update cart quantity: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Cart quantity updated"}), 200
 
 
@@ -132,7 +144,12 @@ def remove_item():
     cart_item = CartItem.query.filter_by(user_phone=phone, item_id=item_id).first()
     if cart_item:
         db.session.delete(cart_item)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logging.error("Failed to remove cart item: %s", e, exc_info=True)
+            return internal_error_response()
         return jsonify({"status": "success", "message": "Item removed"}), 200
 
     return jsonify({"status": "error", "message": "Item not found"}), 404
@@ -144,5 +161,10 @@ def remove_item():
 def clear_cart():
     phone = request.phone
     CartItem.query.filter_by(user_phone=phone).delete()
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to clear cart: %s", e, exc_info=True)
+        return internal_error_response()
     return jsonify({"status": "success", "message": "Cart cleared"}), 200

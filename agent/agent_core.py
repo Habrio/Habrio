@@ -4,13 +4,14 @@ from langchain.agents import initialize_agent, Tool
 from langchain.agents.agent_types import AgentType
 from agent.tools import get_available_items, get_cart_summary
 from agent.prompt_templates import get_agent_prompt
+import logging
 
 try:
     import openai
-    print("✅ openai module imported:", openai.__file__)
-    print("✅ openai version:", openai.__version__)
+    logging.info("✅ openai module imported: %s", openai.__file__)
+    logging.info("✅ openai version: %s", openai.__version__)
 except Exception as e:
-    print("❌ Failed to import openai:", str(e))
+    logging.error("❌ Failed to import openai: %s", str(e))
 
 llm = ChatOpenAI(temperature=0, model="gpt-4")  # or "gpt-3.5-turbo"
 
@@ -38,10 +39,10 @@ def run_agent(query, user_info):
     try:
         prompt = get_agent_prompt(user_info)
         final_input = f"{prompt}\nUser: {query}"
-        print("🔍 Final Agent Input:", final_input)
+        logging.debug("Final Agent Input: %s", final_input)
         response = agent.run(final_input)
-        print("✅ Agent Response:", response)
+        logging.info("✅ Agent Response: %s", response)
         return response, ["Would you like to add to cart?", "Do you want checkout link?"]
     except Exception as e:
-        print("❌ Agent Error:", str(e))
+        logging.error("❌ Agent Error: %s", str(e), exc_info=True)
         raise e  # Let the API return it as part of 500 handler

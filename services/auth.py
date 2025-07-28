@@ -5,6 +5,8 @@ import random, uuid
 from datetime import datetime, timedelta
 from twilio.rest import Client
 import os
+import logging
+from utils.responses import internal_error_response
 
 # --- Logout handler ---
 
@@ -19,7 +21,12 @@ def logout_handler():
 
     user.auth_token = None
     user.token_created_at = None
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to logout user: %s", e, exc_info=True)
+        return internal_error_response()
 
     return jsonify({"status": "success", "message": "Logged out"}), 200
 
@@ -48,9 +55,9 @@ def send_whatsapp_message(to, body):
             to=f"whatsapp:{to}",
             body=body
         )
-        print(f"[WhatsApp] ✅ Message sent. SID: {message.sid}")
+        logging.info("[WhatsApp] ✅ Message sent. SID: %s", message.sid)
     except Exception as e:
-        print(f"[WhatsApp] ❌ Failed to send message: {e}")
+        logging.error("Failed to send message: %s", e, exc_info=True)
 
 
 # --- Send OTP ---
@@ -74,10 +81,15 @@ def send_otp_handler():
     )
 
     db.session.add(new_otp)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to create OTP: %s", e, exc_info=True)
+        return internal_error_response()
 
     # ✅ Send via Twilio or mock
-    print(f"[DEBUG] OTP for {phone} is {otp_code}")  # Or use your actual Twilio send logic
+    logging.info("[DEBUG] OTP for %s is %s", phone, otp_code)
 
     return jsonify({"status": "success", "message": "OTP sent"}), 200
 
@@ -98,10 +110,10 @@ def verify_otp_handler():
         # 🔍 Debug info if OTP failed
         recent_otp = OTP.query.filter_by(phone=phone).order_by(OTP.created_at.desc()).first()
         if recent_otp:
-            print(f"[DEBUG] OTP mismatch: submitted={otp}, expected={recent_otp.otp}")
-            print(f"[DEBUG] is_used={recent_otp.is_used}, created_at={recent_otp.created_at}")
+            logging.warning("OTP mismatch: submitted=%s, expected=%s", otp, recent_otp.otp)
+            logging.warning("is_used=%s, created_at=%s", recent_otp.is_used, recent_otp.created_at)
         else:
-            print(f"[DEBUG] No OTP record found for phone: {phone}")
+            logging.warning("No OTP record found for phone: %s", phone)
         return jsonify({"status": "error", "message": "Invalid or expired OTP"}), 401
 
     # ✅ Check OTP expiry
@@ -131,9 +143,14 @@ def verify_otp_handler():
     # ✅ Commit to DB
     db.session.add(otp_record)
     db.session.add(user)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to verify OTP: %s", e, exc_info=True)
+        return internal_error_response()
 
-    print(f"[DEBUG] ✅ OTP verified. Auth token issued for {phone}")
+    logging.info("[DEBUG] ✅ OTP verified. Auth token issued for %s", phone)
 
     return jsonify({
         "status": "success",
