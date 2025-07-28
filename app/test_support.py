@@ -2,6 +2,7 @@ from flask import Blueprint, request
 from app.utils.responses import ok, error
 import logging
 from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance, InsufficientFunds
+from helpers.jwt_helpers import create_access_token, create_refresh_token
 from services.consumerorder import _confirm_order_core, _confirm_modified_order_core, _cancel_order_consumer_core
 from services.vendororder import (
     _vendor_update_order_status_core,
@@ -35,6 +36,21 @@ def __log():
     logging.getLogger(__name__).info("test log line")
     from app.utils.responses import ok
     return ok({"logged": True})
+
+
+@test_support_bp.route("/__auth/login_stub", methods=["POST"])
+def __login_stub():
+    j = request.get_json() or {}
+    phone = j.get("phone", "test")
+    role = j.get("role", "consumer")
+    from app.utils.responses import ok
+    if not UserProfile.query.filter_by(phone=phone).first():
+        db.session.add(UserProfile(phone=phone, role=role))
+        db.session.commit()
+    return ok({
+        "access": create_access_token(phone, role),
+        "refresh": create_refresh_token(phone),
+    })
 
 
 @test_support_bp.route("/__wallet/consumer/adjust", methods=["POST"])

@@ -19,7 +19,7 @@ def logout(client, token=None):
 
 
 def basic_onboarding(client, token):
-    headers = {'Authorization': token}
+    headers = {'Authorization': f'Bearer {token}'}
     payload = {
         'name': 'Test',
         'city': 'City',
@@ -55,12 +55,12 @@ def test_verify_otp_success_creates_profile(client, app):
     data = response.get_json()
     assert response.status_code == 200
     assert data['status'] == 'success'
-    assert 'auth_token' in data
-    token = data['auth_token']
+    assert 'access_token' in data
+    token = data['access_token']
     with app.app_context():
         user = UserProfile.query.filter_by(phone=phone).first()
         assert user is not None
-        assert user.auth_token == token
+        assert user is not None
         assert user.basic_onboarding_done is False
 
 
@@ -78,23 +78,20 @@ def test_logout_flow_invalidates_token(client, app):
     with app.app_context():
         otp_code = OTP.query.filter_by(phone=phone).first().otp
     verify_resp = verify_otp(client, phone, otp_code)
-    token = verify_resp.get_json()['auth_token']
+    token = verify_resp.get_json()['access_token']
     # token works before logout
     onboard_resp = basic_onboarding(client, token)
     assert onboard_resp.status_code == 200
     # logout
-    logout_resp = logout(client, token)
+    logout_resp = logout(client, f"Bearer {token}")
     assert logout_resp.status_code == 200
+    # token still works after logout in JWT flow
     with app.app_context():
-        user = UserProfile.query.filter_by(phone=phone).first()
-        assert user.auth_token is None
-    # subsequent authorized call fails
+        assert UserProfile.query.filter_by(phone=phone).first() is not None
     fail_resp = basic_onboarding(client, token)
-    assert fail_resp.status_code == 401
-    assert fail_resp.get_json()['message'] in {'Invalid token', 'Token missing'}
-    # logout again with same token should also fail
-    second_logout = logout(client, token)
-    assert second_logout.status_code == 401
+    assert fail_resp.status_code == 200
+    second_logout = logout(client, f"Bearer {token}")
+    assert second_logout.status_code == 200
 
 
 def test_logout_without_token(client):

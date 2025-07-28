@@ -26,6 +26,9 @@ def register_api_v1(app):
 
     add = app.add_url_rule
 
+    # JWT auth refresh
+    app.register_blueprint(auth_services.auth_bp, url_prefix=_join_prefix(API_PREFIX, "auth"))
+
     # Auth and onboarding
     add(j("/send-otp"), view_func=auth_services.send_otp_handler, methods=["POST"])
     add(j("/verify-otp"), view_func=auth_services.verify_otp_handler, methods=["POST"])
