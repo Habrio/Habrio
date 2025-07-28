@@ -21,6 +21,7 @@ def register_api_v1(app):
         consumerorder as consumer_order_services,
         vendororder as vendor_order_services,
     )
+    from services.admin import admin_bp
 
     def j(path: str) -> str:
         return _join_prefix(API_PREFIX, path)
@@ -29,6 +30,7 @@ def register_api_v1(app):
 
     # JWT auth refresh
     app.register_blueprint(auth_services.auth_bp, url_prefix=_join_prefix(API_PREFIX, "auth"))
+    app.register_blueprint(admin_bp, url_prefix="/api/v1/admin")
 
     # Auth and onboarding
     add(j("/send-otp"), view_func=auth_services.send_otp_handler, methods=["POST"])

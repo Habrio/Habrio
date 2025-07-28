@@ -2,6 +2,8 @@ from flask import Flask
 from models import db
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flasgger import Swagger
+from prometheus_flask_exporter import PrometheusMetrics
 # from agent.query_handler import ask_agent_handler
 from dotenv import load_dotenv
 from app.config import get_config_class
@@ -34,6 +36,22 @@ limiter = Limiter(
 app.limiter = limiter
 from models import user, vendor, shop, item, order, wallet, cart  # noqa: F401
 migrate = Migrate(app, db, compare_type=True, render_as_batch=True)
+swagger = Swagger(app, config={
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'apispec',
+            "route": '/apispec.json',
+            "rule_filter": lambda rule: rule.rule.startswith('/api/v1/'),
+            "model_filter": lambda tag: True,
+        }
+    ],
+    "swagger_ui": True,
+    "specs_route": "/docs/"
+})
+metrics = PrometheusMetrics(app, path='/metrics')
+if not app.config.get("TESTING"):
+    metrics.info('app_info', 'Application info', version='1.0.0')
 
 # Configure CORS based on allowed origins
 allowed = app.config.get("CORS_ALLOWED_ORIGINS", "*")

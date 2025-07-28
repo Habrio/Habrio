@@ -48,3 +48,17 @@ Actions are defined in `app/auth/permissions.py`. `admin` has wildcard `*`.
 All APIs are now protected by Flask-Limiter.
 Sensitive endpoints (OTP, login, order) have both per-IP and per-user limits.
 Hitting a rate limit returns JSON 429 with an explanatory message.
+
+### API Documentation and Observability (Step 11)
+
+- **Interactive API docs**: Swagger UI available at `/docs/`
+- **OpenAPI JSON spec**: Available at `/apispec.json`
+- **Prometheus metrics**: Accessible at `/metrics`
+
+### Admin endpoints:
+
+Basic admin endpoints protected by JWT auth and `admin` role:
+
+- `GET /api/v1/admin/users` - List recent users
+- `GET /api/v1/admin/shops` - List recent shops
+- `GET /api/v1/admin/orders` - List recent orders
