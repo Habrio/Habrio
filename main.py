@@ -30,8 +30,20 @@ app = Flask(__name__)
 app.config.from_object(get_config_class())
 configure_logging(app)
 
-# This will allow all origins by default
-CORS(app)
+# Configure CORS based on allowed origins
+allowed = app.config.get("CORS_ALLOWED_ORIGINS", "*")
+if isinstance(allowed, str):
+    allowed = allowed.strip()
+    origins = "*" if allowed == "*" else [o.strip() for o in allowed.split(",") if o.strip()]
+else:
+    origins = allowed or "*"
+
+CORS(
+    app,
+    origins=origins,
+    supports_credentials=True,
+    expose_headers=["X-Request-ID"],
+)
 
 app.register_blueprint(errors_bp)
 
@@ -55,6 +67,21 @@ def _add_request_id_header(resp):
             resp.headers["X-Request-ID"] = rid
     except Exception:
         pass
+    return resp
+
+
+@app.after_request
+def _set_security_headers(resp):
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("Referrer-Policy", "no-referrer")
+    existing = resp.headers.get("Access-Control-Expose-Headers", "")
+    if "X-Request-ID" not in existing:
+        resp.headers["Access-Control-Expose-Headers"] = (
+            existing
+            + ("," if existing and not existing.endswith(",") else "")
+            + "X-Request-ID"
+        ).strip(",")
     return resp
 
 db.init_app(app)
