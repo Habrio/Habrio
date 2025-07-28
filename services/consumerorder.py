@@ -2,7 +2,8 @@ from flask import request, jsonify
 from models import db
 from models.cart import CartItem
 from decimal import Decimal
-from models.wallet import ConsumerWallet, WalletTransaction
+
+from app.services.wallet_ops import adjust_consumer_balance, InsufficientFunds
 from models.order import Order, OrderItem, OrderStatusLog, OrderActionLog, OrderMessage, OrderRating, OrderIssue, OrderReturn
 from datetime import datetime
 from utils.auth_decorator import auth_required
@@ -10,15 +11,7 @@ from utils.role_decorator import role_required
 import logging
 from utils.responses import internal_error_response
 
-# ------------------- Confirm Order -------------------
-@auth_required
-@role_required("consumer")
-def confirm_order():
-    user = request.user
-    data = request.get_json()
-    payment_mode = data.get("payment_mode", "cash")
-    delivery_notes = data.get("delivery_notes", "")
-
+def _confirm_order_core(user, payment_mode, delivery_notes):
     cart_items = CartItem.query.filter_by(user_phone=user.phone).all()
     if not cart_items:
         return jsonify({"status": "error", "message": "Cart is empty"}), 400
@@ -26,71 +19,77 @@ def confirm_order():
     shop_id = cart_items[0].shop_id
     total_amount = sum(Decimal(ci.quantity) * Decimal(ci.item.price) for ci in cart_items)
 
-    # Wallet balance check
-    if payment_mode == "wallet":
-        wallet = ConsumerWallet.query.filter_by(user_phone=user.phone).first()
-        if not wallet or wallet.balance < total_amount:
-            return jsonify({"status": "error", "message": "Insufficient wallet balance"}), 400
-        wallet.balance -= total_amount
-
-    # Create Order
-    new_order = Order(
-        user_phone=user.phone,
-        shop_id=shop_id,
-        payment_mode=payment_mode,
-        payment_status="paid" if payment_mode == "wallet" else "unpaid",
-        delivery_notes=delivery_notes,
-        total_amount=total_amount,
-        final_amount=total_amount,
-        status="pending"
-    )
-    db.session.add(new_order)
-    db.session.flush()
-
-    # Add WalletTransaction if applicable
-    if payment_mode == "wallet":
-        db.session.add(WalletTransaction(
-            user_phone=user.phone,
-            type="debit",
-            amount=total_amount,
-            reference=f"Order #{new_order.id}",
-            status="success"
-        ))
-
-    # Add Order Items
-    for ci in cart_items:
-        db.session.add(OrderItem(
-            order_id=new_order.id,
-            item_id=ci.item.id,
-            name=ci.item.title,
-            unit=ci.item.unit,
-            unit_price=ci.item.price,
-            quantity=ci.quantity,
-            subtotal=Decimal(ci.quantity) * Decimal(ci.item.price)
-        ))
-
-    # Clear cart
-    CartItem.query.filter_by(user_phone=user.phone).delete()
-
-    # Log status and action
-    db.session.add(OrderStatusLog(order_id=new_order.id, status="pending", updated_by=user.phone))
-    db.session.add(OrderActionLog(order_id=new_order.id, action_type="order_created", actor_phone=user.phone, details="Order placed"))
-
     try:
+        if payment_mode == "wallet":
+            adjust_consumer_balance(
+                user.phone,
+                -total_amount,
+                reference="Order debit (pre-create)",
+                type="debit",
+                source="order_confirm",
+            )
+
+        new_order = Order(
+            user_phone=user.phone,
+            shop_id=shop_id,
+            payment_mode=payment_mode,
+            payment_status="paid" if payment_mode == "wallet" else "unpaid",
+            delivery_notes=delivery_notes,
+            total_amount=total_amount,
+            final_amount=total_amount,
+            status="pending",
+        )
+        db.session.add(new_order)
+        db.session.flush()
+
+        for ci in cart_items:
+            db.session.add(
+                OrderItem(
+                    order_id=new_order.id,
+                    item_id=ci.item.id,
+                    name=ci.item.title,
+                    unit=ci.item.unit,
+                    unit_price=ci.item.price,
+                    quantity=ci.quantity,
+                    subtotal=Decimal(ci.quantity) * Decimal(ci.item.price),
+                )
+            )
+
+        CartItem.query.filter_by(user_phone=user.phone).delete()
+
+        db.session.add(
+            OrderStatusLog(order_id=new_order.id, status="pending", updated_by=user.phone)
+        )
+        db.session.add(
+            OrderActionLog(
+                order_id=new_order.id,
+                action_type="order_created",
+                actor_phone=user.phone,
+                details="Order placed",
+            )
+        )
+
         db.session.commit()
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": "Order placed successfully",
+                    "order_id": new_order.id,
+                }
+            ),
+            200,
+        )
+    except InsufficientFunds as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to confirm order: %s", e, exc_info=True)
         return internal_error_response()
-    return jsonify({"status": "success", "message": "Order placed successfully", "order_id": new_order.id}), 200
 
 
-# ------------------- Confirm Modified Order -------------------
-@auth_required
-@role_required("consumer")
-def confirm_modified_order(order_id):
-    user = request.user
-    order = Order.query.get(order_id)
+def _confirm_modified_order_core(user, order):
     if not order or order.user_phone != user.phone:
         return jsonify({"status": "error", "message": "Unauthorized"}), 403
     if order.status != "awaiting_consumer_confirmation":
@@ -100,40 +99,131 @@ def confirm_modified_order(order_id):
     new_amount = Decimal(order.final_amount) if order.final_amount else old_amount
 
     refund_amount = Decimal(0)
-    if order.payment_mode == "wallet" and new_amount < old_amount:
-        refund_amount = old_amount - new_amount
-        wallet = ConsumerWallet.query.filter_by(user_phone=user.phone).first()
-        wallet.balance += refund_amount
-        db.session.add(WalletTransaction(
-            user_phone=user.phone,
-            amount=refund_amount,
-            type="refund",
-            reference=f"Order #{order.id}",
-            status="success"
-        ))
-
-    order.status = "confirmed"
-    order.total_amount = new_amount
-    db.session.add(OrderStatusLog(order_id=order.id, status="confirmed", updated_by=user.phone))
-    db.session.add(OrderActionLog(
-        order_id=order.id,
-        action_type="modification_confirmed",
-        actor_phone=user.phone,
-        details=f"Confirmed modified order. Refund: ₹{float(refund_amount)}"
-    ))
-    db.session.add(OrderMessage(
-        order_id=order.id,
-        sender_phone=user.phone,
-        message="I’ve confirmed the changes. Please proceed."
-    ))
 
     try:
+        if order.payment_mode == "wallet" and new_amount < old_amount:
+            delta = old_amount - new_amount
+            refund_amount = delta
+            adjust_consumer_balance(
+                user.phone,
+                delta,
+                reference=f"Order #{order.id} modification refund",
+                type="refund",
+                source="order_modify",
+            )
+
+        order.status = "confirmed"
+        order.total_amount = new_amount
+        db.session.add(
+            OrderStatusLog(order_id=order.id, status="confirmed", updated_by=user.phone)
+        )
+        db.session.add(
+            OrderActionLog(
+                order_id=order.id,
+                action_type="modification_confirmed",
+                actor_phone=user.phone,
+                details=f"Confirmed modified order. Refund: ₹{float(refund_amount)}",
+            )
+        )
+        db.session.add(
+            OrderMessage(
+                order_id=order.id,
+                sender_phone=user.phone,
+                message="I’ve confirmed the changes. Please proceed.",
+            )
+        )
+
         db.session.commit()
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": "Modified order confirmed",
+                    "refund": float(refund_amount),
+                }
+            ),
+            200,
+        )
+    except InsufficientFunds as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to confirm modified order: %s", e, exc_info=True)
         return internal_error_response()
-    return jsonify({"status": "success", "message": "Modified order confirmed", "refund": float(refund_amount)}), 200
+
+
+def _cancel_order_consumer_core(user, order):
+    if not order or order.user_phone != user.phone:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+    if order.status in ["cancelled", "delivered"]:
+        return jsonify({"status": "error", "message": "Order already closed"}), 400
+
+    refund_amount = Decimal(0)
+
+    try:
+        if order.payment_mode == "wallet":
+            refund_amount = Decimal(order.total_amount)
+            adjust_consumer_balance(
+                user.phone,
+                refund_amount,
+                reference=f"Order #{order.id} cancel refund",
+                type="refund",
+                source="order_cancel",
+            )
+
+        order.status = "cancelled"
+        db.session.add(
+            OrderStatusLog(order_id=order.id, status="cancelled", updated_by=user.phone)
+        )
+        db.session.add(
+            OrderActionLog(
+                order_id=order.id,
+                action_type="order_cancelled",
+                actor_phone=user.phone,
+                details="Cancelled by consumer",
+            )
+        )
+        db.session.add(
+            OrderMessage(order_id=order.id, sender_phone=user.phone, message="Order cancelled by you.")
+        )
+
+        db.session.commit()
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": "Order cancelled",
+                    "refund": float(refund_amount),
+                }
+            ),
+            200,
+        )
+    except InsufficientFunds as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Failed to cancel order: %s", e, exc_info=True)
+        return internal_error_response()
+# ------------------- Confirm Order -------------------
+@auth_required
+@role_required("consumer")
+def confirm_order():
+    user = request.user
+    data = request.get_json()
+    payment_mode = data.get("payment_mode", "cash")
+    delivery_notes = data.get("delivery_notes", "")
+    return _confirm_order_core(user, payment_mode, delivery_notes)
+
+
+# ------------------- Confirm Modified Order -------------------
+@auth_required
+@role_required("consumer")
+def confirm_modified_order(order_id):
+    user = request.user
+    order = Order.query.get(order_id)
+    return _confirm_modified_order_core(user, order)
 
 
 # ------------------- Cancel Order -------------------
@@ -142,36 +232,7 @@ def confirm_modified_order(order_id):
 def cancel_order_consumer(order_id):
     user = request.user
     order = Order.query.get(order_id)
-    if not order or order.user_phone != user.phone:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
-    if order.status in ["cancelled", "delivered"]:
-        return jsonify({"status": "error", "message": "Order already closed"}), 400
-
-    refund_amount = Decimal(0)
-    if order.payment_mode == "wallet":
-        refund_amount = Decimal(order.total_amount)
-        wallet = ConsumerWallet.query.filter_by(user_phone=user.phone).first()
-        wallet.balance += refund_amount
-        db.session.add(WalletTransaction(
-            user_phone=user.phone,
-            amount=refund_amount,
-            type="refund",
-            reference=f"Order #{order.id}",
-            status="success"
-        ))
-
-    order.status = "cancelled"
-    db.session.add(OrderStatusLog(order_id=order.id, status="cancelled", updated_by=user.phone))
-    db.session.add(OrderActionLog(order_id=order.id, action_type="order_cancelled", actor_phone=user.phone, details="Cancelled by consumer"))
-    db.session.add(OrderMessage(order_id=order.id, sender_phone=user.phone, message="Order cancelled by you."))
-
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to cancel order: %s", e, exc_info=True)
-        return internal_error_response()
-    return jsonify({"status": "success", "message": "Order cancelled", "refund": float(refund_amount)}), 200
+    return _cancel_order_consumer_core(user, order)
 
 
 # ------------------- Send Order Message -------------------

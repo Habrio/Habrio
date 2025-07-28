@@ -158,7 +158,7 @@ def test_confirm_order_wallet_and_cash(client, app):
         assert order.payment_status == 'paid'
         assert order.status == 'pending'
         assert OrderItem.query.filter_by(order_id=order_id).count() == 1
-        assert WalletTransaction.query.filter_by(user_phone=phone, reference=f'Order #{order_id}', type='debit').count() == 1
+        assert WalletTransaction.query.filter_by(user_phone=phone, type='debit').count() == 1
         assert CartItem.query.filter_by(user_phone=phone).count() == 0
     assert client.get('/cart/view', headers={'Authorization': token}).get_json()['cart'] == []
 
