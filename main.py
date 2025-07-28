@@ -1,16 +1,7 @@
 from flask import Flask
 from models import db
-from services import (
-    auth as auth_services,
-    user as user_services,
-    vendor as vendor_services,
-    shop as shop_services,
-    item as item_services,
-    cart as cart_services,
-    wallet as wallet_services,
-    consumerorder as consumer_order_services,
-    vendororder as vendor_order_services
-)
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 # from agent.query_handler import ask_agent_handler
 from dotenv import load_dotenv
 from app.config import get_config_class
@@ -33,6 +24,14 @@ app = Flask(__name__)
 app.config.from_object(get_config_class())
 configure_logging(app)
 register_cli(app)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    storage_uri=app.config.get("RATELIMIT_STORAGE_URL", "memory://"),
+    strategy="fixed-window",
+    default_limits=["200 per hour"],
+)
+app.limiter = limiter
 from models import user, vendor, shop, item, order, wallet, cart  # noqa: F401
 migrate = Migrate(app, db, compare_type=True, render_as_batch=True)
 

@@ -4,7 +4,11 @@ class BaseConfig:
     JSON_SORT_KEYS = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")
-    RATELIMIT_STORAGE_URL = os.getenv("RATELIMIT_STORAGE_URL", "")
+    RATELIMIT_STORAGE_URL = os.getenv("RATELIMIT_STORAGE_URL", "memory://")
+    OTP_SEND_LIMIT_PER_IP = os.getenv("OTP_SEND_LIMIT_PER_IP", "5 per 15 minutes")
+    OTP_SEND_LIMIT_PER_PHONE = os.getenv("OTP_SEND_LIMIT_PER_PHONE", "3 per 15 minutes")
+    LOGIN_LIMIT_PER_IP = os.getenv("LOGIN_LIMIT_PER_IP", "10 per 30 minutes")
+    ORDER_LIMIT_PER_IP = os.getenv("ORDER_LIMIT_PER_IP", "20 per hour")
     JWT_SECRET = os.getenv("JWT_SECRET", "dev-insecure-jwt-key")
     ACCESS_TOKEN_LIFETIME_MIN = int(os.getenv("ACCESS_TOKEN_LIFETIME_MIN", 15))
     REFRESH_TOKEN_LIFETIME_DAYS = int(os.getenv("REFRESH_TOKEN_LIFETIME_DAYS", 30))

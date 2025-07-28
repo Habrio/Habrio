@@ -43,3 +43,8 @@ Set `ALLOW_DB_MIGRATIONS=true` in production to permit upgrades or stamping.
 Decorators now accept `role:action` scopes, e.g.:
   @role_required("vendor:modify_order")
 Actions are defined in `app/auth/permissions.py`. `admin` has wildcard `*`.
+
+### Rate limiting
+All APIs are now protected by Flask-Limiter.
+Sensitive endpoints (OTP, login, order) have both per-IP and per-user limits.
+Hitting a rate limit returns JSON 429 with an explanatory message.
