@@ -8,6 +8,7 @@ from models import db
 
 @pytest.fixture(scope='session')
 def app_instance():
+    os.environ.setdefault('APP_ENV','testing')
     os.environ.setdefault('DATABASE_URL', 'sqlite:///:memory:')
     os.environ.setdefault('TWILIO_ACCOUNT_SID', 'dummy')
     os.environ.setdefault('TWILIO_AUTH_TOKEN', 'dummy')

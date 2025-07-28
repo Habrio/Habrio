@@ -33,3 +33,9 @@ Set `ALLOW_DB_MIGRATIONS=true` in production to permit upgrades or stamping.
 - Error handlers remain global (no prefix).
 - Test-only routes remain unversioned and, in testing, also available under `/api/v1/test_support/...`.
 - Clients should update their base path to `/api/v1`.
+
+### Auth
+
+* Access token (lifetime ≈ 15 min) – send via `Authorization: Bearer <token>`.
+* Refresh token (lifetime ≈ 30 days) – POST to `/api/v1/auth/refresh` to obtain new pair.
+* Tokens are signed HS256 with `JWT_SECRET`.

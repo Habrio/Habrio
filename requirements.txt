@@ -12,3 +12,4 @@ psycopg2-binary
 openpyxl
 Flask-Migrate>=4.0.7
 alembic>=1.13.1
+PyJWT>=2.8.0

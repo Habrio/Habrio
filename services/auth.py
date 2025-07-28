@@ -1,34 +1,55 @@
-from flask import request, jsonify
+from flask import request, jsonify, current_app, Blueprint
 from models.user import OTP, UserProfile
 from models import db
-import random, uuid
+import random
 from datetime import datetime, timedelta
 from twilio.rest import Client
 import os
 import logging
 from utils.responses import internal_error_response
+from helpers.jwt_helpers import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    TokenError,
+)
+
+
+auth_bp = Blueprint("auth_bp", __name__)
 
 # --- Logout handler ---
 
 def logout_handler():
-    token = request.headers.get("Authorization")
-    if not token:
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
         return jsonify({"status": "error", "message": "Token missing"}), 401
-
-    user = UserProfile.query.filter_by(auth_token=token).first()
-    if not user:
-        return jsonify({"status": "error", "message": "Invalid token"}), 401
-
-    user.auth_token = None
-    user.token_created_at = None
+    token = auth.split(" ", 1)[1]
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to logout user: %s", e, exc_info=True)
-        return internal_error_response()
-
+        decode_token(token)
+    except TokenError as e:
+        return jsonify({"status": "error", "message": str(e)}), 401
     return jsonify({"status": "success", "message": "Logged out"}), 200
+
+
+@auth_bp.route("/refresh", methods=["POST"])
+def refresh_tokens():
+    j = request.get_json() or {}
+    token = j.get("refresh_token", "")
+    try:
+        payload = decode_token(token, expected_type="refresh")
+    except TokenError as e:
+        return jsonify({"status": "error", "message": str(e)}), 401
+
+    phone = payload.get("sub")
+    user = UserProfile.query.filter_by(phone=phone).first()
+    role = user.role if user else ""
+    access_token = create_access_token(phone, role or "")
+    refresh_token = create_refresh_token(phone)
+    return jsonify({
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "expires_in": current_app.config["ACCESS_TOKEN_LIFETIME_MIN"] * 60,
+    }), 200
 
 # --- Twilio Configuration ---
 
@@ -124,10 +145,6 @@ def verify_otp_handler():
     # ✅ Mark OTP as used
     otp_record.is_used = True
 
-    # ✅ Generate secure token
-    token = str(uuid.uuid4())
-    otp_record.token = token
-
     # ✅ Get device/user-agent info safely
     user_agent = request.headers.get("User-Agent", "")[:200]
 
@@ -135,10 +152,12 @@ def verify_otp_handler():
     user = UserProfile.query.filter_by(phone=phone).first()
     if not user:
         user = UserProfile(phone=phone)
-
-    user.auth_token = token
-    user.token_created_at = datetime.utcnow()
     user.device_info = user_agent
+
+    # ✅ Generate tokens
+    access_token = create_access_token(phone, user.role or "")
+    refresh_token = create_refresh_token(phone)
+    otp_record.token = "issued"
 
     # ✅ Commit to DB
     db.session.add(otp_record)
@@ -150,10 +169,12 @@ def verify_otp_handler():
         logging.error("Failed to verify OTP: %s", e, exc_info=True)
         return internal_error_response()
 
-    logging.info("[DEBUG] ✅ OTP verified. Auth token issued for %s", phone)
+    logging.info("[DEBUG] ✅ OTP verified. Tokens issued for %s", phone)
 
     return jsonify({
         "status": "success",
-        "auth_token": token,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "expires_in": current_app.config["ACCESS_TOKEN_LIFETIME_MIN"] * 60,
         "basic_onboarding_done": user.basic_onboarding_done if user else False
     }), 200

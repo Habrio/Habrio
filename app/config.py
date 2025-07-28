@@ -5,6 +5,9 @@ class BaseConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")
     RATELIMIT_STORAGE_URL = os.getenv("RATELIMIT_STORAGE_URL", "")
+    JWT_SECRET = os.getenv("JWT_SECRET", "dev-insecure-jwt-key")
+    ACCESS_TOKEN_LIFETIME_MIN = int(os.getenv("ACCESS_TOKEN_LIFETIME_MIN", 15))
+    REFRESH_TOKEN_LIFETIME_DAYS = int(os.getenv("REFRESH_TOKEN_LIFETIME_DAYS", 30))
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
