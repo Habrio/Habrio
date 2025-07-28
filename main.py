@@ -19,6 +19,8 @@ import logging
 from flask_cors import CORS
 from app.errors import errors_bp
 from app.logging import configure_logging
+from flask_migrate import Migrate
+from app.cli import register_cli
 from flask import request, g
 import uuid
 
@@ -29,6 +31,9 @@ load_dotenv()
 app = Flask(__name__)
 app.config.from_object(get_config_class())
 configure_logging(app)
+register_cli(app)
+from models import user, vendor, shop, item, order, wallet, cart  # noqa: F401
+migrate = Migrate(app, db, compare_type=True, render_as_batch=True)
 
 # Configure CORS based on allowed origins
 allowed = app.config.get("CORS_ALLOWED_ORIGINS", "*")
