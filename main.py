@@ -13,20 +13,20 @@ from services import (
 )
 # from agent.query_handler import ask_agent_handler
 from dotenv import load_dotenv
+from app.config import get_config_class
 import os
 import logging
 from flask_cors import CORS
 
-# This will allow all origins by default
-app = Flask(__name__)
-CORS(app)
-
 # --- Load Environment Variables ---
 load_dotenv()
 
-# --- App Setup ---
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL")
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Create app and load configuration
+app = Flask(__name__)
+app.config.from_object(get_config_class())
+
+# This will allow all origins by default
+CORS(app)
 
 db.init_app(app)
 with app.app_context():
