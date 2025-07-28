@@ -1,5 +1,4 @@
 from flask import request, jsonify
-from models.user import UserProfile
 from models.vendor import VendorProfile, VendorDocument, VendorPayoutBank
 from models import db
 from utils.auth_decorator import auth_required
@@ -14,7 +13,7 @@ from utils.responses import internal_error_response
 @auth_required
 @role_required(["vendor"])
 def vendor_profile_setup():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    user = request.user
 
     if not user or not user.basic_onboarding_done:
         return jsonify({"status": "error", "message": "Basic onboarding incomplete"}), 400
@@ -55,7 +54,7 @@ def vendor_profile_setup():
 @auth_required
 @role_required(["vendor"])
 def upload_vendor_document():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    user = request.user
     data = request.get_json()
 
     doc_type = data.get("document_type")
@@ -84,7 +83,7 @@ def upload_vendor_document():
 @auth_required
 @role_required(["vendor"])
 def setup_payout_bank():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    user = request.user
     data = request.get_json()
 
     required_fields = ["bank_name", "account_number", "ifsc_code"]

@@ -11,6 +11,7 @@ class OTP(db.Model):
     otp = db.Column(db.String(6), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_used = db.Column(db.Boolean, default=False)
+    token = db.Column(db.String(64), nullable=True)
 
     
     def __repr__(self):

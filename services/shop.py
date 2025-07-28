@@ -4,7 +4,6 @@ from datetime import datetime
 from models import db
 from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
-from models.user import UserProfile
 from models.vendor import VendorProfile
 import logging
 from utils.responses import internal_error_response
@@ -143,7 +142,7 @@ def get_my_shop():
 @auth_required
 @role_required(["vendor"])
 def update_shop_hours():
-    user = UserProfile.query.filter_by(phone=request.phone).first()
+    user = request.user
     shop = Shop.query.filter_by(phone=user.phone).first()
 
     if not shop:
