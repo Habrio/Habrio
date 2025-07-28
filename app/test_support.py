@@ -3,12 +3,18 @@ from app.utils.responses import ok, error
 import logging
 from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance, InsufficientFunds
 from services.consumerorder import _confirm_order_core, _confirm_modified_order_core, _cancel_order_consumer_core
+from services.vendororder import (
+    _vendor_update_order_status_core,
+    _vendor_cancel_order_core,
+    _vendor_complete_return_core,
+)
 from models import db
 from models.user import UserProfile
 from models.shop import Shop
 from models.item import Item
 from models.cart import CartItem
-from models.order import Order
+from models.order import Order, OrderItem, OrderReturn
+from decimal import Decimal as D
 
 
 test_support_bp = Blueprint("test_support_bp", __name__)
@@ -161,3 +167,142 @@ def __orders_cancel(order_id):
     if not order:
         return error("not found", 404)
     return _cancel_order_consumer_core(u, order)
+
+
+@test_support_bp.route("/__seed/order_paid", methods=["POST"])
+def __seed_order_paid():
+    """
+    Body:
+    {
+      "consumer_phone":"c",
+      "vendor_phone":"v",
+      "shop_name":"S",
+      "items":[{"title":"A","price":50,"qty":2},{"title":"B","price":25,"qty":1}],
+      "status":"pending",  # initial status
+      "wallet_paid": true  # if true, set payment_mode=wallet, payment_status=paid
+    }
+    Creates consumer, vendor, shop, items and an order with OrderItems.
+    Does NOT auto credit or debit wallets; that will be done by test steps or route cores.
+    Returns: {"order_id":..., "total":...,"final":...}
+    """
+    j = request.get_json() or {}
+    cph = j.get("consumer_phone", "c")
+    vph = j.get("vendor_phone", "v")
+    if not UserProfile.query.filter_by(phone=cph).first():
+        db.session.add(UserProfile(phone=cph, role="consumer", basic_onboarding_done=True))
+    if not UserProfile.query.filter_by(phone=vph).first():
+        db.session.add(UserProfile(phone=vph, role="vendor", basic_onboarding_done=True))
+    db.session.flush()
+    shop = Shop.query.filter_by(phone=vph).first()
+    if not shop:
+        shop = Shop(shop_name=j.get("shop_name", "S"), shop_type="grocery", society="soc", city="city", phone=vph, is_open=True)
+        db.session.add(shop)
+        db.session.flush()
+
+    items = j.get("items", [{"title": "A", "price": 50, "qty": 2}])
+    order = Order(
+        user_phone=cph,
+        shop_id=shop.id,
+        status=j.get("status", "pending"),
+        payment_mode="wallet" if j.get("wallet_paid", True) else "cash",
+        payment_status="paid" if j.get("wallet_paid", True) else "unpaid",
+        total_amount=0,
+        final_amount=0,
+    )
+    db.session.add(order)
+    db.session.flush()
+
+    tot = D("0.00")
+    for idx, it in enumerate(items, start=1):
+        p = D(str(it.get("price", 0)))
+        q = D(str(it.get("qty", 1)))
+        subt = p * q
+        tot += subt
+        db.session.add(
+            OrderItem(
+                order_id=order.id,
+                item_id=idx,
+                name=it.get("title", "A"),
+                unit="pcs",
+                unit_price=p,
+                quantity=int(q),
+                subtotal=subt,
+            )
+        )
+
+    order.total_amount = tot
+    order.final_amount = tot
+    db.session.commit()
+    return ok({"order_id": order.id, "total": float(tot), "final": float(tot)})
+
+
+@test_support_bp.route("/__vendor/update_status/<int:order_id>", methods=["POST"])
+def __vendor_update_status(order_id):
+    j = request.get_json() or {}
+    class _U:
+        pass
+    u = _U()
+    u.phone = j.get("vendor_phone")
+    order = Order.query.get(order_id)
+    if not order:
+        return error("not found", 404)
+    return _vendor_update_order_status_core(u, order, j.get("status", "delivered"))
+
+
+@test_support_bp.route("/__vendor/cancel/<int:order_id>", methods=["POST"])
+def __vendor_cancel(order_id):
+    j = request.get_json() or {}
+    class _U:
+        pass
+    u = _U()
+    u.phone = j.get("vendor_phone")
+    order = Order.query.get(order_id)
+    if not order:
+        return error("not found", 404)
+    return _vendor_cancel_order_core(u, order)
+
+
+@test_support_bp.route("/__vendor/return/prepare/<int:order_id>", methods=["POST"])
+def __vendor_return_prepare(order_id):
+    """
+    Body: {"returns":[{"item_name":"A","quantity":1}]}
+    Creates accepted OrderReturn rows for the named order items.
+    """
+    j = request.get_json() or {}
+    order = Order.query.get(order_id)
+    if not order:
+        return error("not found", 404)
+    order.status = "delivered"
+    db.session.commit()
+    for r in j.get("returns", []):
+        name = r.get("item_name")
+        qty = int(r.get("quantity", 1))
+        oi = OrderItem.query.filter_by(order_id=order.id, name=name).first()
+        if not oi:
+            continue
+        db.session.add(
+            OrderReturn(
+                order_id=order.id,
+                item_id=oi.item_id,
+                quantity=qty,
+                reason="test",
+                initiated_by="vendor",
+                status="accepted",
+            )
+        )
+    order.status = "return_accepted"
+    db.session.commit()
+    return ok({"prepared": True})
+
+
+@test_support_bp.route("/__vendor/return/complete/<int:order_id>", methods=["POST"])
+def __vendor_return_complete(order_id):
+    j = request.get_json() or {}
+    class _U:
+        pass
+    u = _U()
+    u.phone = j.get("vendor_phone")
+    order = Order.query.get(order_id)
+    if not order:
+        return error("not found", 404)
+    return _vendor_complete_return_core(u, order)

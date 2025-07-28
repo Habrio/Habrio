@@ -214,7 +214,7 @@ def test_vendor_update_status_and_payout(client, app):
         v_wallet = VendorWallet.query.filter_by(user_phone=vendor_phone).first()
         assert order.status == 'delivered'
         assert float(v_wallet.balance) == 30.0
-        assert VendorWalletTransaction.query.filter_by(user_phone=vendor_phone, reference=f'Order #{order_id}').count() == 1
+        assert VendorWalletTransaction.query.filter_by(user_phone=vendor_phone, reference=f'Order #{order_id} delivered').count() == 1
 
     # invalid status
     resp_bad = client.post(f'/order/vendor/status/{order_id}', json={'status': 'unknown'}, headers={'Authorization': vendor_token})
