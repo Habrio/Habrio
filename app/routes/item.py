@@ -39,7 +39,7 @@ def add_item():
         mrp=data.get("mrp"),
         price=data["price"],
         discount=data.get("discount"),
-        quantity_in_stock=data.get("quantity_in_stock", 0),
+        quantity_in_stock=data.get("quantity_in_stock", 100),
         unit=data.get("unit", "pcs"),
         pack_size=data.get("pack_size"),
         is_available=True,

@@ -29,7 +29,7 @@ def create_item(app, price=10.0):
         shop = Shop(shop_name='S1', shop_type='grocery', society='Soc', city='Town', phone='800')
         db.session.add(shop)
         db.session.flush()
-        item = Item(shop_id=shop.id, title='Apple', price=price, mrp=price+2, unit='kg', pack_size='1kg', is_available=True)
+        item = Item(shop_id=shop.id, title='Apple', price=price, mrp=price+2, unit='kg', pack_size='1kg', is_available=True, quantity_in_stock=100)
         db.session.add(item)
         db.session.commit()
         return item.id, shop.id
