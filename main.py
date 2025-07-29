@@ -2,6 +2,7 @@ from flask import Flask
 from models import db
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import extensions
 from flasgger import Swagger
 from prometheus_flask_exporter import PrometheusMetrics
 # from agent.query_handler import ask_agent_handler
@@ -33,6 +34,7 @@ limiter = Limiter(
     strategy="fixed-window",
     default_limits=["200 per hour"],
 )
+extensions.limiter = limiter
 app.limiter = limiter
 from models import user, vendor, shop, item, order, wallet, cart  # noqa: F401
 migrate = Migrate(app, db, compare_type=True, render_as_batch=True)
