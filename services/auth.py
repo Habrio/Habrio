@@ -1,6 +1,6 @@
 from flask import request, jsonify, current_app, Blueprint
 from flask_limiter.util import get_remote_address
-from main import limiter, app
+from extensions import limiter
 from models.user import OTP, UserProfile
 from models import db
 import random
@@ -86,12 +86,12 @@ def send_whatsapp_message(to, body):
 # --- Send OTP ---
 
 @limiter.limit(
-    app.config["OTP_SEND_LIMIT_PER_IP"],
+    lambda: current_app.config["OTP_SEND_LIMIT_PER_IP"],
     key_func=get_remote_address,
     error_message="Too many OTP requests from this IP",
 )
 @limiter.limit(
-    app.config["OTP_SEND_LIMIT_PER_PHONE"],
+    lambda: current_app.config["OTP_SEND_LIMIT_PER_PHONE"],
     key_func=lambda: (request.get_json() or {}).get("phone", ""),
     error_message="Too many OTP requests for this phone number",
 )
@@ -129,7 +129,7 @@ def send_otp_handler():
 # --- Verify OTP ---
 
 @limiter.limit(
-    app.config["LOGIN_LIMIT_PER_IP"],
+    lambda: current_app.config["LOGIN_LIMIT_PER_IP"],
     key_func=get_remote_address,
     error_message="Too many logins from this IP",
 )
