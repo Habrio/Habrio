@@ -1,11 +1,12 @@
 from flask import Blueprint, jsonify
+from app.version import API_PREFIX
 from app.utils import auth_required
 from app.utils import role_required
 from models.user import UserProfile
 from models.shop import Shop
 from models.order import Order
 
-admin_bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
+admin_bp = Blueprint("admin", __name__, url_prefix=f"{API_PREFIX}/admin")
 
 @admin_bp.route("/users", methods=["GET"])
 @auth_required

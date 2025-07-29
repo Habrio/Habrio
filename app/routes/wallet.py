@@ -2,6 +2,7 @@ from flask import Blueprint
 # services/wallet.py
 
 from flask import request, jsonify
+from app.version import API_PREFIX
 from models import db
 from models.wallet import (
     ConsumerWallet,
@@ -11,7 +12,7 @@ from models.wallet import (
 
 )
 from models.vendor import VendorPayoutBank
-wallet_bp = Blueprint("wallet", __name__, url_prefix="/api/v1")
+wallet_bp = Blueprint("wallet", __name__, url_prefix=API_PREFIX)
 from app.utils import auth_required
 from app.utils import role_required
 from decimal import Decimal

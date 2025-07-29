@@ -1,5 +1,6 @@
 from flask import Blueprint
 from flask import request, jsonify
+from app.version import API_PREFIX
 from models.cart import CartItem
 from models.shop import Shop
 from models.item import Item
@@ -9,7 +10,7 @@ from app.utils import auth_required
 from app.utils import role_required
 import logging
 from app.utils import internal_error_response
-cart_bp = Blueprint("cart", __name__, url_prefix="/api/v1/cart")
+cart_bp = Blueprint("cart", __name__, url_prefix=f"{API_PREFIX}/cart")
 
 
 MAX_QUANTITY_PER_ITEM = 10  # Set your max quantity per item limit here

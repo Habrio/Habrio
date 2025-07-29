@@ -1,5 +1,6 @@
 from flask import Blueprint
 from flask import request, jsonify
+from app.version import API_PREFIX
 from models.shop import Shop, ShopHours, ShopActionLog
 from datetime import datetime
 from models import db
@@ -7,7 +8,7 @@ from app.utils import auth_required
 from app.utils import role_required
 from models.vendor import VendorProfile
 import logging
-shop_bp = Blueprint("shop", __name__, url_prefix="/api/v1")
+shop_bp = Blueprint("shop", __name__, url_prefix=API_PREFIX)
 
 from app.utils import internal_error_response
 

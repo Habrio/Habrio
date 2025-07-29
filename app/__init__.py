@@ -5,6 +5,8 @@ from app.logging import configure_logging
 from app.errors import errors_bp
 from app.cli import register_cli
 from app.api import register_api_v1
+from app.routes import auth as auth_routes
+from app.version import API_PREFIX
 from flask_cors import CORS
 from flasgger import Swagger
 from prometheus_flask_exporter import PrometheusMetrics
@@ -32,6 +34,7 @@ def create_app(config_object=None):
 
     configure_logging(app)
     register_cli(app)
+    auth_routes.init_twilio(app)
 
     # Optional OpenAI configuration for the assistant
     openai_key = os.environ.get("OPENAI_API_KEY")
@@ -55,7 +58,7 @@ def create_app(config_object=None):
             {
                 "endpoint": 'apispec',
                 "route": '/apispec.json',
-                "rule_filter": lambda rule: rule.rule.startswith('/api/v1/'),
+                "rule_filter": lambda rule: rule.rule.startswith(f"{API_PREFIX}/"),
                 "model_filter": lambda tag: True,
             }
         ],
@@ -121,9 +124,10 @@ def create_app(config_object=None):
         return resp
 
     db.init_app(app)
-    with app.app_context():
-        db.create_all()
-        logging.info("✅ Tables created")
+    if app.config.get("DEBUG") or app.config.get("TESTING"):
+        with app.app_context():
+            db.create_all()
+            logging.info("✅ Tables created")
 
     @app.route("/health")
     def health():
