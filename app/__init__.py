@@ -33,6 +33,16 @@ def create_app(config_object=None):
     configure_logging(app)
     register_cli(app)
 
+    # Optional OpenAI configuration for the assistant
+    openai_key = os.environ.get("OPENAI_API_KEY")
+    if openai_key:
+        try:
+            import openai
+            openai.api_key = openai_key
+            app.logger.info("OpenAI integration enabled")
+        except Exception as e:  # pragma: no cover - runtime configuration
+            app.logger.error("OpenAI init failed: %s", e)
+
     # Initialize extensions
     limiter = extensions.limiter
     limiter.init_app(app)

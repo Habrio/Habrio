@@ -7,6 +7,11 @@ from .cart import cart_bp
 from .wallet import wallet_bp
 from .order import order_bp
 from .admin import admin_bp
+try:
+    from .agent import agent_bp
+except Exception:  # pragma: no cover - agent optional
+    agent_bp = None
+
 
 __all__ = [
     'auth_bp',
@@ -18,4 +23,5 @@ __all__ = [
     'wallet_bp',
     'order_bp',
     'admin_bp',
+    'agent_bp',
 ]

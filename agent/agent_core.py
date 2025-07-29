@@ -5,12 +5,16 @@ from langchain.agents.agent_types import AgentType
 from agent.tools import get_available_items, get_cart_summary
 from agent.prompt_templates import get_agent_prompt
 import logging
+import os
 
 try:
     import openai
+    key = os.environ.get("OPENAI_API_KEY")
+    if key:
+        openai.api_key = key
     logging.info("✅ openai module imported: %s", openai.__file__)
     logging.info("✅ openai version: %s", openai.__version__)
-except Exception as e:
+except Exception as e:  # pragma: no cover - env issues
     logging.error("❌ Failed to import openai: %s", str(e))
 
 llm = ChatOpenAI(temperature=0, model="gpt-4")  # or "gpt-3.5-turbo"
@@ -36,6 +40,9 @@ agent = initialize_agent(
 )
 
 def run_agent(query, user_info):
+    """Execute the LangChain agent with provided query and user info."""
+    if not getattr(openai, "api_key", None):
+        raise RuntimeError("OpenAI API key not configured")
     try:
         prompt = get_agent_prompt(user_info)
         final_input = f"{prompt}\nUser: {query}"
@@ -45,4 +52,4 @@ def run_agent(query, user_info):
         return response, ["Would you like to add to cart?", "Do you want checkout link?"]
     except Exception as e:
         logging.error("❌ Agent Error: %s", str(e), exc_info=True)
-        raise e  # Let the API return it as part of 500 handler
+        raise e  # Propagate to caller
