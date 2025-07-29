@@ -3,13 +3,13 @@ from flask import request, jsonify
 from models.shop import Shop, ShopHours, ShopActionLog
 from datetime import datetime
 from models import db
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
+from app.utils import auth_required
+from app.utils import role_required
 from models.vendor import VendorProfile
 import logging
 shop_bp = Blueprint("shop", __name__, url_prefix="/api/v1")
 
-from utils.responses import internal_error_response
+from app.utils import internal_error_response
 
 # --- Create shop by vendor ---
 @shop_bp.route("/vendor/create-shop", methods=["POST"])

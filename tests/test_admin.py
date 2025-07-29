@@ -1,6 +1,6 @@
 import importlib
 import pytest
-from helpers.jwt_helpers import create_access_token
+from app.utils import create_access_token
 from models import db, UserProfile, Shop, Order
 
 

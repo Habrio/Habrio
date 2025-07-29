@@ -12,11 +12,11 @@ from models.wallet import (
 )
 from models.vendor import VendorPayoutBank
 wallet_bp = Blueprint("wallet", __name__, url_prefix="/api/v1")
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
+from app.utils import auth_required
+from app.utils import role_required
 from decimal import Decimal
 import logging
-from utils.responses import internal_error_response
+from app.utils import internal_error_response
 from app.services.wallet_ops import (
     adjust_consumer_balance,
     adjust_vendor_balance,

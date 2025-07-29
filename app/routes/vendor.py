@@ -1,11 +1,11 @@
 from flask import Blueprint, request, jsonify
 from models.vendor import VendorProfile, VendorDocument, VendorPayoutBank
 from models import db
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
+from app.utils import auth_required
+from app.utils import role_required
 from datetime import datetime
 import logging
-from utils.responses import internal_error_response
+from app.utils import internal_error_response
 
 vendor_bp = Blueprint("vendor", __name__, url_prefix="/api/v1/vendor")
 

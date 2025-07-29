@@ -14,9 +14,9 @@ from models.order import (
     OrderReturn,
 )
 from decimal import Decimal
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
-from utils.responses import internal_error_response
+from app.utils import auth_required
+from app.utils import role_required
+from app.utils import internal_error_response
 from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance, InsufficientFunds
 from models.shop import Shop
 

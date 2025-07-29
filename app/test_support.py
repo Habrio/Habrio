@@ -1,10 +1,10 @@
 from flask import Blueprint, request, jsonify
 from app.utils.responses import ok, error
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
+from app.utils import auth_required
+from app.utils import role_required
 import logging
 from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance, InsufficientFunds
-from helpers.jwt_helpers import create_access_token, create_refresh_token
+from app.utils import create_access_token, create_refresh_token
 from app.routes.order import _confirm_order_core, _confirm_modified_order_core, _cancel_order_consumer_core
 from app.routes.order import (_vendor_update_order_status_core, _vendor_cancel_order_core, _vendor_complete_return_core)
 from models import db
@@ -23,7 +23,7 @@ test_support_bp = Blueprint("test_support_bp", __name__)
 def __ok():
     auth = request.headers.get("Authorization")
     if auth:
-        from helpers.jwt_helpers import decode_token, TokenError
+        from app.utils import decode_token, TokenError
         token = auth.split(" ", 1)[1] if auth.startswith("Bearer ") else auth
         try:
             decode_token(token, expected_type="access")
