@@ -18,6 +18,7 @@ from decimal import Decimal
 from app.utils import auth_required
 from app.utils import role_required
 from app.utils import internal_error_response
+from app.utils import error
 from app.services.order_service import (
     confirm_order as confirm_order_service,
     confirm_modified_order as confirm_modified_order_service,
@@ -49,11 +50,11 @@ def confirm_order():
         return jsonify({"status": "success", "message": "Order placed successfully", "order_id": new_order.id}), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except ValidationError as e:
         db.session.rollback()
         status = 403 if "Unauthorized" in str(e) else 400
-        return jsonify({"status": "error", "message": str(e)}), status
+        return error(str(e), status=status)
     except Exception as e:
         db.session.rollback()
         logging.error("Order confirmation failed: %s", e, exc_info=True)
@@ -97,11 +98,11 @@ def confirm_modified_order(order_id):
         return jsonify({"status": "success", "message": "Modified order confirmed", "refund": float(refund)}), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except ValidationError as e:
         db.session.rollback()
         status = 403 if "Unauthorized" in str(e) else 400
-        return jsonify({"status": "error", "message": str(e)}), status
+        return error(str(e), status=status)
     except Exception as e:
         db.session.rollback()
         return internal_error_response()
@@ -119,11 +120,11 @@ def cancel_order_consumer(order_id):
         return jsonify({"status": "success", "message": "Order cancelled", "refund": float(refund)}), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except ValidationError as e:
         db.session.rollback()
         status = 403 if "Unauthorized" in str(e) else 400
-        return jsonify({"status": "error", "message": str(e)}), status
+        return error(str(e), status=status)
     except Exception:
         db.session.rollback()
         return internal_error_response()
@@ -137,10 +138,10 @@ def send_order_message_consumer(order_id):
     data = request.get_json()
     message = data.get("message")
     if not message:
-        return jsonify({"status": "error", "message": "Message required"}), 400
+        return error("Message required", status=400)
     order = Order.query.get(order_id)
     if not order or order.user_phone != user.phone:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     db.session.add(OrderMessage(order_id=order_id, sender_phone=user.phone, message=message))
     db.session.add(OrderActionLog(order_id=order_id, action_type="message_sent", actor_phone=user.phone, details=message))
     try:
@@ -158,7 +159,7 @@ def get_order_messages_consumer(order_id):
     user = request.user
     order = Order.query.get(order_id)
     if not order or order.user_phone != user.phone:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     messages = OrderMessage.query.filter_by(order_id=order_id).order_by(OrderMessage.timestamp.asc()).all()
     result = [msg.to_dict() for msg in messages]
     return jsonify({"status": "success", "messages": result}), 200
@@ -173,15 +174,15 @@ def rate_order(order_id):
     rating = data.get("rating")
     review = data.get("review", "").strip()
     if not rating or not (1 <= int(rating) <= 5):
-        return jsonify({"status": "error", "message": "Rating must be between 1 and 5"}), 400
+        return error("Rating must be between 1 and 5", status=400)
     order = Order.query.get(order_id)
     if not order or order.user_phone != user.phone:
-        return jsonify({"status": "error", "message": "Unauthorized or order not found"}), 403
+        return error("Unauthorized or order not found", status=403)
     if order.status != "delivered":
-        return jsonify({"status": "error", "message": "Order not yet delivered"}), 400
+        return error("Order not yet delivered", status=400)
     existing = OrderRating.query.filter_by(order_id=order_id).first()
     if existing:
-        return jsonify({"status": "error", "message": "Rating already submitted"}), 400
+        return error("Rating already submitted", status=400)
     rating_entry = OrderRating(order_id=order.id, user_phone=user.phone, rating=int(rating), review=review)
     db.session.add(rating_entry)
     db.session.add(OrderActionLog(order_id=order.id, action_type="order_rated", actor_phone=user.phone, details=f"Rated {rating}/5. {review}" if review else f"Rated {rating}/5"))
@@ -203,9 +204,9 @@ def raise_order_issue(order_id):
     description = data.get("description", "")
     order = Order.query.get(order_id)
     if not order or order.user_phone != user.phone:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     if order.status != "delivered":
-        return jsonify({"status": "error", "message": "Issue can only be raised for delivered orders"}), 400
+        return error("Issue can only be raised for delivered orders", status=400)
     issue = OrderIssue(order_id=order.id, user_phone=user.phone, issue_type=issue_type, description=description)
     db.session.add(issue)
     db.session.add(OrderActionLog(order_id=order.id, action_type="issue_raised", actor_phone=user.phone, details=f"Issue: {issue_type} | {description}"))
@@ -228,9 +229,9 @@ def request_return(order_id):
     items = data.get("items", [])
     order = Order.query.get(order_id)
     if not order or order.user_phone != user.phone:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     if order.status != "delivered":
-        return jsonify({"status": "error", "message": "Only delivered orders can be returned"}), 400
+        return error("Only delivered orders can be returned", status=400)
     for item in items:
         db.session.add(OrderReturn(order_id=order.id, item_id=item.get("item_id"), quantity=item.get("quantity", 1), reason=reason, initiated_by="consumer", status="requested"))
     db.session.add(OrderActionLog(order_id=order.id, actor_phone=user.phone, action_type="return_requested", details=f"{len(items)} item(s) requested for return. Reason: {reason}"))
@@ -250,7 +251,7 @@ def get_shop_orders():
     user = request.user
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop:
-        return jsonify({"status": "error", "message": "Shop not found"}), 404
+        return error("Shop not found", status=404)
     orders = Order.query.filter_by(shop_id=shop.id).order_by(Order.created_at.desc()).all()
     result = []
     for order in orders:
@@ -279,24 +280,24 @@ def update_order_status(order_id):
     new_status = data.get("status")
     order = Order.query.get(order_id)
     if not order:
-        return jsonify({"status": "error", "message": "Order not found"}), 404
+        return error("Order not found", status=404)
     shop = Shop.query.get(order.shop_id)
     if not shop or shop.phone != user.phone:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     try:
         update_status_by_vendor(user, order, new_status)
         db.session.commit()
         return jsonify({"status": "success", "message": f"Order marked as {new_status}"}), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except ValidationError as e:
         db.session.rollback()
         status = 403 if "Unauthorized" in str(e) else 400
-        return jsonify({"status": "error", "message": str(e)}), status
+        return error(str(e), status=status)
     except Exception:
         db.session.rollback()
-        return jsonify({"status": "error", "message": "Failed to update order status"}), 500
+        return error("Failed to update order status", status=500)
 
 
 @order_bp.route("/vendor/modify/<int:order_id>", methods=["POST"])
@@ -309,9 +310,9 @@ def modify_order_item(order_id):
     order = Order.query.get(order_id)
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not order or not shop or order.shop_id != shop.id:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     if order.status in ["cancelled", "delivered"]:
-        return jsonify({"status": "error", "message": "Cannot modify a closed order"}), 400
+        return error("Cannot modify a closed order", status=400)
     updated_total = Decimal(0)
     update_log = []
     for mod in modifications:
@@ -349,23 +350,23 @@ def cancel_order_vendor(order_id):
     user = request.user
     order = Order.query.get(order_id)
     if not order:
-        return jsonify({"status": "error", "message": "Order not found"}), 404
+        return error("Order not found", status=404)
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop or shop.id != order.shop_id:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     try:
         refund = cancel_order_by_vendor(user, order)
         db.session.commit()
         return jsonify({"status": "success", "message": "Order cancelled", "refund": float(refund)}), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except ValidationError as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception:
         db.session.rollback()
-        return jsonify({"status": "error", "message": "Failed to cancel order"}), 500
+        return error("Failed to cancel order", status=500)
 
 
 @order_bp.route("/vendor/message/send/<int:order_id>", methods=["POST"])
@@ -376,11 +377,11 @@ def send_order_message_vendor(order_id):
     data = request.get_json()
     message = data.get("message")
     if not message:
-        return jsonify({"status": "error", "message": "Message required"}), 400
+        return error("Message required", status=400)
     order = Order.query.get(order_id)
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not order or not shop or order.shop_id != shop.id:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     db.session.add(OrderMessage(order_id=order_id, sender_phone=user.phone, message=message))
     db.session.add(OrderActionLog(order_id=order_id, action_type="message_sent", actor_phone=user.phone, details=message))
     try:
@@ -399,7 +400,7 @@ def get_order_messages_vendor(order_id):
     order = Order.query.get(order_id)
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not order or not shop or order.shop_id != shop.id:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     messages = OrderMessage.query.filter_by(order_id=order_id).order_by(OrderMessage.timestamp.asc()).all()
     result = [msg.to_dict() for msg in messages]
     return jsonify({"status": "success", "messages": result}), 200
@@ -416,7 +417,7 @@ def get_issues_for_order(order_id=None):
         order = None
     shop = Shop.query.filter_by(phone=user.phone).first()
     if order_id and (not order or not shop or order.shop_id != shop.id):
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     issues = OrderIssue.query.filter_by(order_id=order.id).order_by(OrderIssue.created_at.desc()).all() if order else []
     result = [i.to_dict() for i in issues]
     return jsonify({"status": "success", "issues": result}), 200
@@ -430,10 +431,10 @@ def accept_return(order_id):
     order = Order.query.get(order_id)
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not order or not shop or order.shop_id != shop.id:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     returns = OrderReturn.query.filter_by(order_id=order.id, status="requested").all()
     if not returns:
-        return jsonify({"status": "error", "message": "No pending return requests"}), 400
+        return error("No pending return requests", status=400)
     for r in returns:
         r.status = "accepted"
     order.status = "return_accepted"
@@ -455,20 +456,20 @@ def complete_return(order_id):
     order = Order.query.get(order_id)
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not order or not shop or order.shop_id != shop.id:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     try:
         service_complete_return(user, order)
         db.session.commit()
         return jsonify({"status": "success", "message": "Return marked as completed"}), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except ValidationError as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception:
         db.session.rollback()
-        return jsonify({"status": "error", "message": "Failed to complete return"}), 500
+        return error("Failed to complete return", status=500)
 
 
 @order_bp.route("/return/vendor/initiate/<int:order_id>", methods=["POST"])
@@ -482,9 +483,9 @@ def vendor_initiate_return(order_id):
     order = Order.query.get(order_id)
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not order or not shop or order.shop_id != shop.id:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        return error("Unauthorized", status=403)
     if order.status != "delivered":
-        return jsonify({"status": "error", "message": "Only delivered orders can be returned"}), 400
+        return error("Only delivered orders can be returned", status=400)
     for item in items:
         db.session.add(OrderReturn(order_id=order.id, item_id=item.get("item_id"), quantity=item.get("quantity", 1), reason=reason, initiated_by="vendor", status="accepted"))
     order.status = "return_accepted"

@@ -10,6 +10,7 @@ import logging
 shop_bp = Blueprint("shop", __name__, url_prefix=API_PREFIX)
 
 from app.utils import internal_error_response
+from app.utils import error
 from app.services import shop_service
 from app.services.shop_service import ValidationError
 
@@ -26,7 +27,7 @@ def create_shop():
         return jsonify({"status": "success", "message": "Shop created"}), 200
     except ValidationError as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to create shop: %s", e, exc_info=True)
@@ -42,7 +43,7 @@ def edit_shop():
 
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop:
-        return jsonify({"status": "error", "message": "Shop not found"}), 404
+        return error("Shop not found", status=404)
 
     shop.shop_name = data.get("shop_name", shop.shop_name)
     shop.shop_type = data.get("shop_type", shop.shop_type)
@@ -74,7 +75,7 @@ def get_my_shop():
     if user.role == "vendor":
         shop = Shop.query.filter_by(phone=user.phone).first()
         if not shop:
-            return jsonify({"status": "error", "message": "Shop not found"}), 404
+            return error("Shop not found", status=404)
 
         result = {
             "id": shop.id,
@@ -121,13 +122,13 @@ def update_shop_hours():
     shop = Shop.query.filter_by(phone=user.phone).first()
 
     if not shop:
-        return jsonify({"status": "error", "message": "Shop not found"}), 404
+        return error("Shop not found", status=404)
 
     data = request.get_json()
     weekly_hours = data.get("weekly_hours")
 
     if not weekly_hours:
-        return jsonify({"status": "error", "message": "No hours data provided"}), 400
+        return error("No hours data provided", status=400)
 
     # Clear previous hours
     ShopHours.query.filter_by(shop_id=shop.id).delete()
@@ -174,11 +175,11 @@ def toggle_shop_status():
     new_status = data.get("is_open")
 
     if new_status not in [True, False]:
-        return jsonify({"status": "error", "message": "Invalid is_open value"}), 400
+        return error("Invalid is_open value", status=400)
 
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop:
-        return jsonify({"status": "error", "message": "Shop not found"}), 404
+        return error("Shop not found", status=404)
 
     shop.is_open = new_status
     timestamp = datetime.utcnow()
@@ -260,7 +261,7 @@ def search_shops():
     query_param = request.args.get("q", "").lower().strip()
 
     if not query_param:
-        return jsonify({"status": "error", "message": "Missing search query 'q'"}), 400
+        return error("Missing search query 'q'", status=400)
 
     results = Shop.query.filter(
         Shop.city == city,

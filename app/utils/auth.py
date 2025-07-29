@@ -1,5 +1,6 @@
 from functools import wraps
-from flask import request, jsonify, g
+from flask import request, g
+from .responses import error
 from app.auth.permissions import role_has_scope
 from .jwt import decode_token, TokenError
 from models.user import UserProfile
@@ -10,12 +11,12 @@ def auth_required(func):
     def wrapper(*args, **kwargs):
         auth = request.headers.get("Authorization", "")
         if not auth:
-            return jsonify({"status": "error", "message": "Auth header missing"}), 401
+            return error("Auth header missing", status=401)
         token = auth.split(" ", 1)[1] if auth.startswith("Bearer ") else auth
         try:
             payload = decode_token(token, expected_type="access")
         except TokenError as e:
-            return jsonify({"status": "error", "message": str(e)}), 401
+            return error(str(e), status=401)
 
         g.phone = payload["sub"]
         g.role = payload.get("role")
@@ -46,7 +47,7 @@ def role_required(required):
             if db_role:
                 role = db_role
             if not role:
-                return jsonify({"status": "error", "message": "Role missing"}), 403
+                return error("Role missing", status=403)
             for entry in required_set:
                 if ":" in entry:
                     r, action = entry.split(":", 1)
@@ -56,7 +57,7 @@ def role_required(required):
                     if role == entry:
                         break
             else:
-                return jsonify({"status": "error", "message": "Forbidden"}), 403
+                return error("Forbidden", status=403)
             return fn(*args, **kwargs)
 
         return wrapper

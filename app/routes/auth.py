@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from twilio.rest import Client
 import logging
 from app.utils import internal_error_response
+from app.utils import error
 from app.utils import (
     create_access_token,
     create_refresh_token,
@@ -24,12 +25,12 @@ auth_bp = Blueprint("auth", __name__, url_prefix=API_PREFIX)
 def logout_handler():
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
-        return jsonify({"status": "error", "message": "Token missing"}), 401
+        return error("Token missing", status=401)
     token = auth.split(" ", 1)[1]
     try:
         decode_token(token)
     except TokenError as e:
-        return jsonify({"status": "error", "message": str(e)}), 401
+        return error(str(e), status=401)
     return jsonify({"status": "success", "message": "Logged out"}), 200
 
 
@@ -40,7 +41,7 @@ def refresh_tokens():
     try:
         payload = decode_token(token, expected_type="refresh")
     except TokenError as e:
-        return jsonify({"status": "error", "message": str(e)}), 401
+        return error(str(e), status=401)
 
     phone = payload.get("sub")
     user = UserProfile.query.filter_by(phone=phone).first()
@@ -106,7 +107,7 @@ def send_otp_handler():
     phone = data.get("phone")
 
     if not phone:
-        return jsonify({"status": "error", "message": "Phone number is required"}), 400
+        return error("Phone number is required", status=400)
 
     otp_code = str(random.randint(100000, 999999))
 
@@ -143,7 +144,7 @@ def verify_otp_handler():
     otp = data.get("otp", "").strip()
 
     if not phone or not otp:
-        return jsonify({"status": "error", "message": "Phone and OTP are required"}), 400
+        return error("Phone and OTP are required", status=400)
 
     otp_record = OTP.query.filter_by(phone=phone, otp=otp, is_used=False).first()
 
@@ -154,11 +155,11 @@ def verify_otp_handler():
             logging.warning("is_used=%s, created_at=%s", recent_otp.is_used, recent_otp.created_at)
         else:
             logging.warning("No OTP record found for phone: %s", phone)
-        return jsonify({"status": "error", "message": "Invalid or expired OTP"}), 401
+        return error("Invalid or expired OTP", status=401)
 
     otp_expiry_minutes = 10
     if datetime.utcnow() - otp_record.created_at > timedelta(minutes=otp_expiry_minutes):
-        return jsonify({"status": "error", "message": "OTP expired"}), 401
+        return error("OTP expired", status=401)
 
     otp_record.is_used = True
 
