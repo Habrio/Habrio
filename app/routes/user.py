@@ -1,14 +1,15 @@
-# --- services/user.py ---
-from flask import request, jsonify
+from flask import Blueprint, request, jsonify
 from models.user import ConsumerProfile
 from models import db
 from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
-from datetime import datetime
 import logging
 from utils.responses import internal_error_response
 
+user_bp = Blueprint("user", __name__, url_prefix="/api/v1")
+
 # Basic onboarding -------------
+@user_bp.route("/onboarding/basic", methods=["POST"])
 @auth_required
 def basic_onboarding():
     """Complete initial onboarding details for the authenticated user."""
@@ -16,9 +17,6 @@ def basic_onboarding():
     required_fields = ["name", "city", "society", "role"]
     if not all(field in data for field in required_fields):
         return jsonify({"status": "error", "message": "Missing fields"}), 400
-
-    phone = request.phone
-    role = data["role"]
 
     user = request.user
 
@@ -28,7 +26,7 @@ def basic_onboarding():
     user.name = data["name"]
     user.city = data["city"]
     user.society = data["society"]
-    user.role = role
+    user.role = data["role"]
     user.basic_onboarding_done = True
 
     db.session.add(user)
@@ -41,8 +39,8 @@ def basic_onboarding():
 
     return jsonify({"status": "success", "message": "Basic onboarding complete"}), 200
 
-
 # Consumer onboarding -------------
+@user_bp.route("/onboarding/consumer", methods=["POST"])
 @auth_required
 @role_required(["consumer"])
 def consumer_onboarding():
@@ -82,7 +80,7 @@ def consumer_onboarding():
     return jsonify({"status": "success", "message": "Consumer onboarding done"}), 200
 
 # Get Consumer Profile -------------
-
+@user_bp.route("/profile/me", methods=["GET"])
 @auth_required
 @role_required(["consumer"])
 def get_consumer_profile():
@@ -98,6 +96,7 @@ def get_consumer_profile():
     return jsonify({"status": "success", "data": data}), 200
 
 # Edit Consumer Profile -------------
+@user_bp.route("/profile/edit", methods=["POST"])
 @auth_required
 @role_required(["consumer"])
 def edit_consumer_profile():
