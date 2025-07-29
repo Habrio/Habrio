@@ -18,319 +18,19 @@ from decimal import Decimal
 from app.utils import auth_required
 from app.utils import role_required
 from app.utils import internal_error_response
-from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance, InsufficientFunds
+from app.services.order_service import (
+    confirm_order as confirm_order_service,
+    confirm_modified_order as confirm_modified_order_service,
+    cancel_order_by_consumer,
+    update_status_by_vendor,
+    cancel_order_by_vendor,
+    complete_return as service_complete_return,
+    ValidationError,
+)
+from app.services.wallet_ops import InsufficientFunds
 from models.shop import Shop
 
 order_bp = Blueprint("order", __name__, url_prefix=f"{API_PREFIX}/order")
-
-# ------------------- Helper functions -------------------
-
-def _confirm_order_core(user, payment_mode, delivery_notes):
-    cart_items = CartItem.query.filter_by(user_phone=user.phone).all()
-    if not cart_items:
-        return jsonify({"status": "error", "message": "Cart is empty"}), 400
-
-    shop_id = cart_items[0].shop_id
-    total_amount = sum(Decimal(ci.quantity) * Decimal(ci.item.price) for ci in cart_items)
-
-    try:
-        if payment_mode == "wallet":
-            adjust_consumer_balance(
-                user.phone,
-                -total_amount,
-                reference="Order debit (pre-create)",
-                type="debit",
-                source="order_confirm",
-            )
-
-        new_order = Order(
-            user_phone=user.phone,
-            shop_id=shop_id,
-            payment_mode=payment_mode,
-            payment_status="paid" if payment_mode == "wallet" else "unpaid",
-            delivery_notes=delivery_notes,
-            total_amount=total_amount,
-            final_amount=total_amount,
-            status="pending",
-        )
-        db.session.add(new_order)
-        db.session.flush()
-
-        for ci in cart_items:
-            db.session.add(
-                OrderItem(
-                    order_id=new_order.id,
-                    item_id=ci.item.id,
-                    name=ci.item.title,
-                    unit=ci.item.unit,
-                    unit_price=ci.item.price,
-                    quantity=ci.quantity,
-                    subtotal=Decimal(ci.quantity) * Decimal(ci.item.price),
-                )
-            )
-
-        CartItem.query.filter_by(user_phone=user.phone).delete()
-
-        db.session.add(
-            OrderStatusLog(order_id=new_order.id, status="pending", updated_by=user.phone)
-        )
-        db.session.add(
-            OrderActionLog(
-                order_id=new_order.id,
-                action_type="order_created",
-                actor_phone=user.phone,
-                details="Order placed",
-            )
-        )
-
-        db.session.commit()
-        return (
-            jsonify({"status": "success", "message": "Order placed successfully", "order_id": new_order.id}),
-            200,
-        )
-    except InsufficientFunds as e:
-        db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
-    except Exception as e:
-        db.session.rollback()
-        return internal_error_response()
-
-
-def _confirm_modified_order_core(user, order):
-    if not order or order.user_phone != user.phone:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
-    if order.status != "awaiting_consumer_confirmation":
-        return jsonify({"status": "error", "message": "Order not in modifiable state"}), 400
-
-    old_amount = Decimal(order.total_amount)
-    new_amount = Decimal(order.final_amount) if order.final_amount else old_amount
-
-    refund_amount = Decimal(0)
-
-    try:
-        if order.payment_mode == "wallet" and new_amount < old_amount:
-            delta = old_amount - new_amount
-            refund_amount = delta
-            adjust_consumer_balance(
-                user.phone,
-                delta,
-                reference=f"Order #{order.id} modification refund",
-                type="refund",
-                source="order_modify",
-            )
-
-        order.status = "confirmed"
-        order.total_amount = new_amount
-        db.session.add(OrderStatusLog(order_id=order.id, status="confirmed", updated_by=user.phone))
-        db.session.add(
-            OrderActionLog(
-                order_id=order.id,
-                action_type="modification_confirmed",
-                actor_phone=user.phone,
-                details=f"Confirmed modified order. Refund: ₹{float(refund_amount)}",
-            )
-        )
-        db.session.add(
-            OrderMessage(
-                order_id=order.id,
-                sender_phone=user.phone,
-                message="I’ve confirmed the changes. Please proceed.",
-            )
-        )
-
-        db.session.commit()
-        return (
-            jsonify({"status": "success", "message": "Modified order confirmed", "refund": float(refund_amount)}),
-            200,
-        )
-    except InsufficientFunds as e:
-        db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
-    except Exception as e:
-        db.session.rollback()
-        return internal_error_response()
-
-
-def _cancel_order_consumer_core(user, order):
-    if not order or order.user_phone != user.phone:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
-    if order.status in ["cancelled", "delivered"]:
-        return jsonify({"status": "error", "message": "Order already closed"}), 400
-
-    refund_amount = Decimal(0)
-
-    try:
-        if order.payment_mode == "wallet":
-            refund_amount = Decimal(order.total_amount)
-            adjust_consumer_balance(
-                user.phone,
-                refund_amount,
-                reference=f"Order #{order.id} cancel refund",
-                type="refund",
-                source="order_cancel",
-            )
-
-        order.status = "cancelled"
-        db.session.add(OrderStatusLog(order_id=order.id, status="cancelled", updated_by=user.phone))
-        db.session.add(
-            OrderActionLog(
-                order_id=order.id,
-                action_type="order_cancelled",
-                actor_phone=user.phone,
-                details="Cancelled by consumer",
-            )
-        )
-        db.session.add(
-            OrderMessage(order_id=order.id, sender_phone=user.phone, message="Order cancelled by you.")
-        )
-
-        db.session.commit()
-        return (
-            jsonify({"status": "success", "message": "Order cancelled", "refund": float(refund_amount)}),
-            200,
-        )
-    except InsufficientFunds as e:
-        db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
-    except Exception as e:
-        db.session.rollback()
-        return internal_error_response()
-
-
-def _vendor_update_order_status_core(user, order, new_status):
-    try:
-        if new_status not in ["accepted", "rejected", "delivered"]:
-            return jsonify({"status": "error", "message": "Invalid status"}), 400
-
-        if (
-            new_status == "delivered"
-            and order.payment_mode == "wallet"
-            and order.payment_status == "paid"
-        ):
-            amt = Decimal(order.final_amount or order.total_amount)
-            adjust_vendor_balance(
-                user.phone,
-                +amt,
-                reference=f"Order #{order.id} delivered",
-                type="credit",
-                source="order_delivered",
-            )
-
-        order.status = new_status
-        db.session.add(OrderStatusLog(order_id=order.id, status=new_status, updated_by=user.phone))
-        db.session.add(
-            OrderActionLog(
-                order_id=order.id,
-                action_type="status_updated",
-                actor_phone=user.phone,
-                details=f"Order status updated to {new_status}",
-            )
-        )
-        db.session.commit()
-        return (jsonify({"status": "success", "message": f"Order marked as {new_status}"}), 200)
-    except InsufficientFunds as e:
-        db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
-    except Exception:
-        db.session.rollback()
-        return jsonify({"status": "error", "message": "Failed to update order status"}), 500
-
-
-def _vendor_cancel_order_core(user, order):
-    try:
-        if order.status in ["cancelled", "delivered"]:
-            return jsonify({"status": "error", "message": "Order already closed"}), 400
-
-        refund_amount = Decimal(0)
-        if order.payment_mode == "wallet":
-            refund_amount = Decimal(order.total_amount)
-            adjust_consumer_balance(
-                order.user_phone,
-                +refund_amount,
-                reference=f"Order #{order.id} vendor cancel",
-                type="refund",
-                source="vendor_cancel",
-            )
-
-        order.status = "cancelled"
-        db.session.add(OrderStatusLog(order_id=order.id, status="cancelled", updated_by=user.phone))
-        db.session.add(
-            OrderActionLog(
-                order_id=order.id,
-                action_type="order_cancelled",
-                actor_phone=user.phone,
-                details="Cancelled by vendor",
-            )
-        )
-        db.session.add(
-            OrderMessage(order_id=order.id, sender_phone=user.phone, message="Order cancelled by shop.")
-        )
-        db.session.commit()
-        return (
-            jsonify({"status": "success", "message": "Order cancelled", "refund": float(refund_amount)}),
-            200,
-        )
-    except InsufficientFunds as e:
-        db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
-    except Exception:
-        db.session.rollback()
-        return jsonify({"status": "error", "message": "Failed to cancel order"}), 500
-
-
-def _vendor_complete_return_core(user, order):
-    try:
-        if order.status != "return_accepted":
-            return jsonify({"status": "error", "message": "Return not accepted yet"}), 400
-
-        returns = OrderReturn.query.filter_by(order_id=order.id, status="accepted").all()
-        if not returns:
-            return jsonify({"status": "error", "message": "No accepted returns found"}), 400
-
-        from decimal import Decimal as D
-
-        refund_total = D("0.00")
-        for r in returns:
-            for oi in OrderItem.query.filter_by(order_id=order.id, item_id=r.item_id).all():
-                refund_total += D(str(oi.unit_price)) * D(str(r.quantity))
-
-        for r in returns:
-            r.status = "completed"
-
-        order.status = "return_completed"
-        db.session.add(OrderStatusLog(order_id=order.id, status="return_completed", updated_by=user.phone))
-        db.session.add(
-            OrderActionLog(
-                order_id=order.id,
-                action_type="return_completed",
-                actor_phone=user.phone,
-                details="Vendor marked return as picked up",
-            )
-        )
-
-        if order.payment_mode == "wallet" and refund_total > 0:
-            adjust_consumer_balance(
-                order.user_phone,
-                +refund_total,
-                reference=f"Return refund for order #{order.id}",
-                type="refund",
-                source="return_completed",
-            )
-            adjust_vendor_balance(
-                user.phone,
-                -refund_total,
-                reference=f"Return refund for order #{order.id}",
-                type="debit",
-            )
-
-        db.session.commit()
-        return jsonify({"status": "success", "message": "Return marked as completed"}), 200
-    except InsufficientFunds as e:
-        db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
-    except Exception:
-        db.session.rollback()
-        return jsonify({"status": "error", "message": "Failed to complete return"}), 500
 
 # ------------------- Consumer Endpoints -------------------
 
@@ -343,7 +43,21 @@ def confirm_order():
     data = request.get_json()
     payment_mode = data.get("payment_mode", "cash")
     delivery_notes = data.get("delivery_notes", "")
-    return _confirm_order_core(user, payment_mode, delivery_notes)
+    try:
+        new_order = confirm_order_service(user, payment_mode, delivery_notes)
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Order placed successfully", "order_id": new_order.id}), 200
+    except InsufficientFunds as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except ValidationError as e:
+        db.session.rollback()
+        status = 403 if "Unauthorized" in str(e) else 400
+        return jsonify({"status": "error", "message": str(e)}), status
+    except Exception as e:
+        db.session.rollback()
+        logging.error("Order confirmation failed: %s", e, exc_info=True)
+        return internal_error_response()
 
 
 @order_bp.route("/history", methods=["GET"])
@@ -377,7 +91,20 @@ def get_order_history():
 def confirm_modified_order(order_id):
     user = request.user
     order = Order.query.get(order_id)
-    return _confirm_modified_order_core(user, order)
+    try:
+        refund = confirm_modified_order_service(user, order)
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Modified order confirmed", "refund": float(refund)}), 200
+    except InsufficientFunds as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except ValidationError as e:
+        db.session.rollback()
+        status = 403 if "Unauthorized" in str(e) else 400
+        return jsonify({"status": "error", "message": str(e)}), status
+    except Exception as e:
+        db.session.rollback()
+        return internal_error_response()
 
 
 @order_bp.route("/consumer/cancel/<int:order_id>", methods=["POST"])
@@ -386,7 +113,20 @@ def confirm_modified_order(order_id):
 def cancel_order_consumer(order_id):
     user = request.user
     order = Order.query.get(order_id)
-    return _cancel_order_consumer_core(user, order)
+    try:
+        refund = cancel_order_by_consumer(user, order)
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Order cancelled", "refund": float(refund)}), 200
+    except InsufficientFunds as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except ValidationError as e:
+        db.session.rollback()
+        status = 403 if "Unauthorized" in str(e) else 400
+        return jsonify({"status": "error", "message": str(e)}), status
+    except Exception:
+        db.session.rollback()
+        return internal_error_response()
 
 
 @order_bp.route("/consumer/message/send/<int:order_id>", methods=["POST"])
@@ -543,7 +283,20 @@ def update_order_status(order_id):
     shop = Shop.query.get(order.shop_id)
     if not shop or shop.phone != user.phone:
         return jsonify({"status": "error", "message": "Unauthorized"}), 403
-    return _vendor_update_order_status_core(user, order, new_status)
+    try:
+        update_status_by_vendor(user, order, new_status)
+        db.session.commit()
+        return jsonify({"status": "success", "message": f"Order marked as {new_status}"}), 200
+    except InsufficientFunds as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except ValidationError as e:
+        db.session.rollback()
+        status = 403 if "Unauthorized" in str(e) else 400
+        return jsonify({"status": "error", "message": str(e)}), status
+    except Exception:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": "Failed to update order status"}), 500
 
 
 @order_bp.route("/vendor/modify/<int:order_id>", methods=["POST"])
@@ -600,7 +353,19 @@ def cancel_order_vendor(order_id):
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop or shop.id != order.shop_id:
         return jsonify({"status": "error", "message": "Unauthorized"}), 403
-    return _vendor_cancel_order_core(user, order)
+    try:
+        refund = cancel_order_by_vendor(user, order)
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Order cancelled", "refund": float(refund)}), 200
+    except InsufficientFunds as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except ValidationError as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except Exception:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": "Failed to cancel order"}), 500
 
 
 @order_bp.route("/vendor/message/send/<int:order_id>", methods=["POST"])
@@ -691,7 +456,19 @@ def complete_return(order_id):
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not order or not shop or order.shop_id != shop.id:
         return jsonify({"status": "error", "message": "Unauthorized"}), 403
-    return _vendor_complete_return_core(user, order)
+    try:
+        service_complete_return(user, order)
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Return marked as completed"}), 200
+    except InsufficientFunds as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except ValidationError as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except Exception:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": "Failed to complete return"}), 500
 
 
 @order_bp.route("/return/vendor/initiate/<int:order_id>", methods=["POST"])

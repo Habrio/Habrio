@@ -6,11 +6,12 @@ from datetime import datetime
 from models import db
 from app.utils import auth_required
 from app.utils import role_required
-from models.vendor import VendorProfile
 import logging
 shop_bp = Blueprint("shop", __name__, url_prefix=API_PREFIX)
 
 from app.utils import internal_error_response
+from app.services import shop_service
+from app.services.shop_service import ValidationError
 
 # --- Create shop by vendor ---
 @shop_bp.route("/vendor/create-shop", methods=["POST"])
@@ -19,51 +20,17 @@ from app.utils import internal_error_response
 def create_shop():
     user = request.user
     data = request.get_json()
-    vendor_profile = VendorProfile.query.filter_by(user_phone=user.phone).first()
-    if not vendor_profile:
-        return jsonify({"status": "error", "message": "Vendor profile not found. Please complete vendor onboarding first."}), 400
-
-    if Shop.query.filter_by(phone=user.phone).first():
-        return jsonify({"status": "error", "message": "Shop already exists for this vendor"}), 400
-
-    required_fields = ["shop_name", "shop_type"]
-    if not all(field in data for field in required_fields):
-        return jsonify({"status": "error", "message": "Missing required fields"}), 400
-
-    new_shop = Shop(
-        shop_name=data["shop_name"],
-        shop_type=data["shop_type"],
-        society=user.society,
-        city=user.city,
-        phone=user.phone,
-        description=data.get("description", ""),
-        delivers=data.get("delivers", False),
-        appointment_only=data.get("appointment_only", False),
-        is_open=data.get("is_open", True),
-        category_tags=data.get("category_tags"),
-        logo_url=data.get("logo_url"),
-        featured=data.get("featured", False),
-        verified=data.get("verified", False),
-        last_active_at=datetime.utcnow()
-    )
-
-    db.session.add(new_shop)
-    db.session.flush()  # Get shop.id
-
-    # Link shop to vendor
-    vendor_profile.shop_id = new_shop.id
-
-    # Mark onboarding done after shop creation
-    user.role_onboarding_done = True
-
     try:
+        shop_service.create_shop_for_vendor(user, data)
         db.session.commit()
+        return jsonify({"status": "success", "message": "Shop created"}), 200
+    except ValidationError as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to create shop: %s", e, exc_info=True)
         return internal_error_response()
-
-    return jsonify({"status": "success", "message": "Shop created"}), 200
 
 @shop_bp.route("/shop/edit", methods=["POST"])
 # --- Edit shop by vendor ---

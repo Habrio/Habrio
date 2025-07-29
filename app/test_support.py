@@ -5,8 +5,14 @@ from app.utils import role_required
 import logging
 from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance, InsufficientFunds
 from app.utils import create_access_token, create_refresh_token
-from app.routes.order import _confirm_order_core, _confirm_modified_order_core, _cancel_order_consumer_core
-from app.routes.order import (_vendor_update_order_status_core, _vendor_cancel_order_core, _vendor_complete_return_core)
+from app.services.order_service import (
+    confirm_order as confirm_order_service,
+    confirm_modified_order as confirm_modified_order_service,
+    cancel_order_by_consumer as cancel_order_service,
+    update_status_by_vendor as update_status_service,
+    cancel_order_by_vendor as cancel_order_vendor_service,
+    complete_return as complete_return_service,
+)
 from models import db
 from models.user import UserProfile
 from models.shop import Shop
@@ -128,7 +134,7 @@ def __seed_basic():
         shop = Shop(shop_name=p.get("shop_name", "S"), shop_type="grocery", society="soc", city="city", phone=vphone, is_open=True)
         db.session.add(shop)
         db.session.flush()
-    itm = Item(shop_id=shop.id, title=p.get("item", {}).get("title", "Milk"), price=float(p.get("item", {}).get("price", 50.0)), is_available=True, is_active=True)
+    itm = Item(shop_id=shop.id, title=p.get("item", {}).get("title", "Milk"), price=float(p.get("item", {}).get("price", 50.0)), is_available=True, is_active=True, quantity_in_stock=100)
     db.session.add(itm)
     db.session.flush()
     qty = int(p.get("cart_qty", 1))
@@ -158,7 +164,9 @@ def __orders_confirm():
         pass
     u = _U()
     u.phone = j.get("phone")
-    return _confirm_order_core(u, j.get("payment_mode", "cash"), j.get("delivery_notes", ""))
+    order = confirm_order_service(u, j.get("payment_mode", "cash"), j.get("delivery_notes", ""))
+    db.session.commit()
+    return jsonify({"status": "success", "order_id": order.id}), 200
 
 
 @test_support_bp.route("/__orders/confirm_modified/<int:order_id>", methods=["POST"])
@@ -175,7 +183,9 @@ def __orders_confirm_modified(order_id):
         pass
     u = _U()
     u.phone = j.get("phone")
-    return _confirm_modified_order_core(u, order)
+    refund = confirm_modified_order_service(u, order)
+    db.session.commit()
+    return jsonify({"status": "success", "refund": float(refund)}), 200
 
 
 @test_support_bp.route("/__orders/cancel/<int:order_id>", methods=["POST"])
@@ -188,7 +198,9 @@ def __orders_cancel(order_id):
     order = Order.query.get(order_id)
     if not order:
         return error("not found", 404)
-    return _cancel_order_consumer_core(u, order)
+    refund = cancel_order_service(u, order)
+    db.session.commit()
+    return jsonify({"status": "success", "refund": float(refund)}), 200
 
 
 @test_support_bp.route("/__seed/order_paid", methods=["POST"])
@@ -268,7 +280,9 @@ def __vendor_update_status(order_id):
     order = Order.query.get(order_id)
     if not order:
         return error("not found", 404)
-    return _vendor_update_order_status_core(u, order, j.get("status", "delivered"))
+    update_status_service(u, order, j.get("status", "delivered"))
+    db.session.commit()
+    return ok({"updated": True})
 
 
 @test_support_bp.route("/__vendor/cancel/<int:order_id>", methods=["POST"])
@@ -281,7 +295,9 @@ def __vendor_cancel(order_id):
     order = Order.query.get(order_id)
     if not order:
         return error("not found", 404)
-    return _vendor_cancel_order_core(u, order)
+    refund = cancel_order_vendor_service(u, order)
+    db.session.commit()
+    return ok({"refund": float(refund)})
 
 
 @test_support_bp.route("/__vendor/return/prepare/<int:order_id>", methods=["POST"])
@@ -327,7 +343,9 @@ def __vendor_return_complete(order_id):
     order = Order.query.get(order_id)
     if not order:
         return error("not found", 404)
-    return _vendor_complete_return_core(u, order)
+    complete_return_service(u, order)
+    db.session.commit()
+    return ok({"completed": True})
 
 
 @test_support_bp.route("/vendor_scope_ping", methods=["POST"])
