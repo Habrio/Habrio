@@ -62,3 +62,7 @@ Basic admin endpoints protected by JWT auth and `admin` role:
 - `GET /api/v1/admin/users` - List recent users
 - `GET /api/v1/admin/shops` - List recent shops
 - `GET /api/v1/admin/orders` - List recent orders
+
+### Optional AI assistant
+
+If `OPENAI_API_KEY` is provided in the environment, the service exposes `/api/v1/agent/query` for chat-based assistance. The endpoint requires authentication and returns the assistant's answer along with suggestions.

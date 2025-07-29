@@ -8,7 +8,10 @@ from app.routes import (
     wallet_bp,
     order_bp,
     admin_bp,
+    agent_bp,
 )
+import os
+import logging
 
 
 def register_api_v1(app):
@@ -22,4 +25,9 @@ def register_api_v1(app):
     app.register_blueprint(wallet_bp)
     app.register_blueprint(order_bp)
     app.register_blueprint(admin_bp)
+    if os.environ.get("OPENAI_API_KEY") and agent_bp:
+        logging.info("Agent blueprint enabled")
+        app.register_blueprint(agent_bp)
+    else:
+        logging.info("Agent blueprint not enabled")
 
