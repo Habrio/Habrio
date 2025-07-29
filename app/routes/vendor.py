@@ -5,6 +5,7 @@ from app.utils import auth_required
 from app.utils import role_required
 import logging
 from app.utils import internal_error_response
+from app.utils import error
 from app.services import vendor_service
 from app.services.vendor_service import ValidationError
 
@@ -23,7 +24,7 @@ def vendor_profile_setup():
         return jsonify({"status": "success", "message": "Vendor profile created"}), 200
     except ValidationError as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to create vendor profile: %s", e, exc_info=True)
@@ -45,7 +46,7 @@ def upload_vendor_document():
         return jsonify({"status": "success", "message": "Document uploaded"}), 200
     except ValidationError as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to upload vendor document: %s", e, exc_info=True)
@@ -64,7 +65,7 @@ def setup_payout_bank():
         return jsonify({"status": "success", "message": "Payout bank info saved"}), 200
     except ValidationError as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to setup payout bank: %s", e, exc_info=True)

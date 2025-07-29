@@ -18,6 +18,7 @@ from app.utils import role_required
 from decimal import Decimal
 import logging
 from app.utils import internal_error_response
+from app.utils import error
 from app.services.wallet_ops import (
     adjust_consumer_balance,
     adjust_vendor_balance,
@@ -67,7 +68,7 @@ def load_wallet():
     try:
         amount = Decimal(str(data.get("amount", "0")))
         if amount <= 0:
-            return jsonify({"status": "error", "message": "Invalid amount"}), 400
+            return error("Invalid amount", status=400)
 
         new_bal = adjust_consumer_balance(
             user.phone,
@@ -80,7 +81,7 @@ def load_wallet():
         return jsonify({"status": "success", "balance": float(new_bal)}), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to load wallet: %s", e, exc_info=True)
@@ -110,7 +111,7 @@ def debit_wallet():
         return jsonify({"status": "success", "balance": float(new_bal)}), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to debit wallet: %s", e, exc_info=True)
@@ -140,7 +141,7 @@ def refund_wallet():
         return jsonify({"status": "success", "balance": float(new_bal)}), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to refund wallet: %s", e, exc_info=True)
@@ -192,7 +193,7 @@ def credit_vendor_wallet():
         reference = data.get("reference", "manual-credit")
 
         if amount <= 0:
-            return jsonify({"status": "error", "message": "Invalid credit amount"}), 400
+            return error("Invalid credit amount", status=400)
 
         new_bal = adjust_vendor_balance(
             user.phone,
@@ -205,7 +206,7 @@ def credit_vendor_wallet():
         return jsonify({"status": "success", "balance": float(new_bal)}), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to credit vendor wallet: %s", e, exc_info=True)
@@ -235,7 +236,7 @@ def debit_vendor_wallet():
         return jsonify({"status": "success", "balance": float(new_bal)}), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to debit vendor wallet: %s", e, exc_info=True)
@@ -254,12 +255,12 @@ def withdraw_vendor_wallet():
         amount = Decimal(str(data.get("amount", "0")))
 
         if amount <= 0:
-            return jsonify({"status": "error", "message": "Invalid withdrawal amount"}), 400
+            return error("Invalid withdrawal amount", status=400)
 
         wallet = VendorWallet.query.filter_by(user_phone=user.phone).first()
         bank = VendorPayoutBank.query.filter_by(user_phone=user.phone).first()
         if not bank:
-            return jsonify({"status": "error", "message": "No payout bank setup found"}), 400
+            return error("No payout bank setup found", status=400)
 
         new_bal = adjust_vendor_balance(
             user.phone,
@@ -277,7 +278,7 @@ def withdraw_vendor_wallet():
         }), 200
     except InsufficientFunds as e:
         db.session.rollback()
-        return jsonify({"status": "error", "message": str(e)}), 400
+        return error(str(e), status=400)
     except Exception as e:
         db.session.rollback()
         logging.error("Failed to withdraw vendor wallet: %s", e, exc_info=True)

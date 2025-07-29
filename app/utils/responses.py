@@ -17,8 +17,12 @@ def error(message, status=400, code=None):
 
 
 def error_response(message: str, status_code: int):
-    return jsonify({"status": "error", "message": message}), status_code
+    return jsonify({"status": "error", "message": message, "code": status_code}), status_code
 
 
 def internal_error_response():
-    return error_response("An unexpected error occurred, please try again later", 500)
+    """Return a generic 500 response in our standard error envelope."""
+    return error(
+        "An unexpected error occurred, please try again later",
+        status=500,
+    )

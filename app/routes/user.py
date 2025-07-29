@@ -4,6 +4,7 @@ from models.user import ConsumerProfile
 from models import db
 from app.utils import auth_required
 from app.utils import role_required
+from app.utils import error
 import logging
 from app.utils import internal_error_response
 
@@ -17,7 +18,7 @@ def basic_onboarding():
     data = request.get_json()
     required_fields = ["name", "city", "society", "role"]
     if not all(field in data for field in required_fields):
-        return jsonify({"status": "error", "message": "Missing fields"}), 400
+        return error("Missing fields", status=400)
 
     user = request.user
 
@@ -47,15 +48,15 @@ def basic_onboarding():
 def consumer_onboarding():
     user = request.user
     if not user or not user.basic_onboarding_done:
-        return jsonify({"status": "error", "message": "Basic onboarding incomplete"}), 400
+        return error("Basic onboarding incomplete", status=400)
     if user.role_onboarding_done:
-        return jsonify({"status": "error", "message": "Role onboarding already done"}), 400
+        return error("Role onboarding already done", status=400)
 
     data = request.get_json()
 
     existing = ConsumerProfile.query.filter_by(user_phone=request.phone).first()
     if existing:
-        return jsonify({"status": "error", "message": "Profile already exists"}), 400
+        return error("Profile already exists", status=400)
 
     consumer_profile = ConsumerProfile(
         user_phone=request.phone,
@@ -87,11 +88,11 @@ def consumer_onboarding():
 def get_consumer_profile():
     user = request.user
     if not user:
-        return jsonify({"status": "error", "message": "User not found"}), 404
+        return error("User not found", status=404)
 
     profile = ConsumerProfile.query.filter_by(user_phone=user.phone).first()
     if not profile:
-        return jsonify({"status": "error", "message": "Consumer profile not found"}), 404
+        return error("Consumer profile not found", status=404)
 
     data = profile.to_dict()
     return jsonify({"status": "success", "data": data}), 200
@@ -105,7 +106,7 @@ def edit_consumer_profile():
     profile = ConsumerProfile.query.filter_by(user_phone=user.phone).first()
 
     if not profile:
-        return jsonify({"status": "error", "message": "Consumer profile not found"}), 404
+        return error("Consumer profile not found", status=404)
 
     data = request.get_json()
 

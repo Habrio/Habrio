@@ -15,6 +15,7 @@ import logging
 item_bp = Blueprint("item", __name__, url_prefix=API_PREFIX)
 
 from app.utils import internal_error_response
+from app.utils import error
 
 @item_bp.route("/item/add", methods=["POST"])
 @auth_required
@@ -25,11 +26,11 @@ def add_item():
 
     required_fields = ["title", "price"]
     if not all(field in data for field in required_fields):
-        return jsonify({"status": "error", "message": "Missing required fields"}), 400
+        return error("Missing required fields", status=400)
 
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop:
-        return jsonify({"status": "error", "message": "Shop not found"}), 404
+        return error("Shop not found", status=404)
 
     item = Item(
         shop_id=shop.id,
@@ -70,7 +71,7 @@ def toggle_item_availability(item_id):
     shop = Shop.query.filter_by(phone=user.phone).first()
 
     if not item or item.shop_id != shop.id:
-        return jsonify({"status": "error", "message": "Item not found or unauthorized"}), 404
+        return error("Item not found or unauthorized", status=404)
 
     item.is_available = not item.is_available
     try:
@@ -92,7 +93,7 @@ def update_item(item_id):
     shop = Shop.query.filter_by(phone=user.phone).first()
 
     if not item or item.shop_id != shop.id:
-        return jsonify({"status": "error", "message": "Item not found or unauthorized"}), 404
+        return error("Item not found or unauthorized", status=404)
 
     item.title = data.get("title", item.title)
     item.brand = data.get("brand", item.brand)
@@ -125,7 +126,7 @@ def get_items():
     user = request.user
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop:
-        return jsonify({"status": "error", "message": "Shop not found"}), 404
+        return error("Shop not found", status=404)
 
     items = Item.query.filter_by(shop_id=shop.id).all()
     result = [
@@ -159,7 +160,7 @@ def bulk_upload_items():
     file = request.files.get("file")
 
     if not file:
-        return jsonify({"status": "error", "message": "No file uploaded"}), 400
+        return error("No file uploaded", status=400)
 
     filename = secure_filename(file.filename)
     ext = filename.split('.')[-1].lower()
@@ -170,17 +171,17 @@ def bulk_upload_items():
         elif ext in ["xls", "xlsx"]:
             df = pd.read_excel(file)
         else:
-            return jsonify({"status": "error", "message": "Unsupported file type"}), 400
+            return error("Unsupported file type", status=400)
     except Exception as e:
-        return jsonify({"status": "error", "message": f"File read error: {str(e)}"}), 400
+        return error(f"File read error: {str(e)}", status=400)
 
     required_columns = {"title", "price"}
     if not required_columns.issubset(set(df.columns)):
-        return jsonify({"status": "error", "message": f"Missing columns: {required_columns}"}), 400
+        return error(f"Missing columns: {required_columns}", status=400)
 
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop:
-        return jsonify({"status": "error", "message": "Shop not found"}), 404
+        return error("Shop not found", status=404)
 
     created = 0
     for _, row in df.iterrows():
@@ -226,9 +227,9 @@ def view_items_by_shop(shop_id):
     # 1. Verify shop exists and is currently open
     shop = Shop.query.get(shop_id)
     if not shop:
-        return jsonify({"status": "error", "message": "Shop not found"}), 404
+        return error("Shop not found", status=404)
     if not shop.is_open:
-        return jsonify({"status": "error", "message": "Shop is currently closed"}), 403
+        return error("Shop is currently closed", status=403)
 
     # 2. Fetch only available items
     items = Item.query.filter_by(shop_id=shop_id, is_available=True).all()
