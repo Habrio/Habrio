@@ -9,10 +9,10 @@ def _load_app(monkeypatch):
     monkeypatch.setenv("TWILIO_ACCOUNT_SID", "dummy")
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "dummy")
     monkeypatch.setenv("TWILIO_WHATSAPP_FROM", "dummy")
-    for m in ["main", "app.config", "app.test_support"]:
+    for m in ["wsgi", "app.config", "app.test_support"]:
         if m in sys.modules:
             del sys.modules[m]
-    import main as entry
+    import wsgi as entry
     importlib.reload(entry)
     return entry.app
 

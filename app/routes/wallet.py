@@ -25,8 +25,8 @@ from app.services.wallet_ops import (
 
 
 # ------------------- Get or Create Consumer Wallet -------------------
-@auth_required
 @wallet_bp.route("/wallet", methods=["GET"])
+@auth_required
 @role_required(["consumer"])
 def get_or_create_wallet():
     """Return the consumer wallet for the authenticated user, creating one if needed."""
@@ -149,6 +149,7 @@ def refund_wallet():
 # ------------------- Get or Create Vendor Wallet -------------------
 @auth_required
 @wallet_bp.route("/vendor/wallet", methods=["GET"])
+@auth_required
 @role_required(["vendor"])
 def get_vendor_wallet():
     """Return or create the vendor wallet for the authenticated vendor."""
@@ -178,9 +179,9 @@ def get_vendor_wallet_history():
 
 
 # ------------------- Credit Vendor Wallet -------------------
+@wallet_bp.route("/vendor/wallet/credit", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
-@wallet_bp.route("/vendor/wallet/credit", methods=["POST"])
 def credit_vendor_wallet():
     """Credit the vendor's wallet with the provided amount."""
     user = request.user

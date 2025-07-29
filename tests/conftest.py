@@ -13,8 +13,8 @@ def app_instance():
     os.environ.setdefault('TWILIO_ACCOUNT_SID', 'dummy')
     os.environ.setdefault('TWILIO_AUTH_TOKEN', 'dummy')
     os.environ.setdefault('TWILIO_WHATSAPP_FROM', 'dummy')
-    main = importlib.import_module('main')
-    app = main.app
+    from app import create_app
+    app = create_app()
     app.config.update(
         TESTING=True,
         SQLALCHEMY_DATABASE_URI='sqlite:///:memory:',

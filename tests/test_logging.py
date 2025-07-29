@@ -9,11 +9,11 @@ def load_app(monkeypatch):
     monkeypatch.setenv('TWILIO_ACCOUNT_SID', 'dummy')
     monkeypatch.setenv('TWILIO_AUTH_TOKEN', 'dummy')
     monkeypatch.setenv('TWILIO_WHATSAPP_FROM', 'dummy')
-    for module in ["main", "app.config"]:
+    for module in ["wsgi", "app.config"]:
         if module in sys.modules:
             del sys.modules[module]
-    main = importlib.import_module("main")
-    return main.app
+    entry = importlib.import_module("wsgi")
+    return entry.app
 
 
 @pytest.fixture()

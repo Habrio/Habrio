@@ -14,12 +14,11 @@ def load_app(monkeypatch, env):
             monkeypatch.delenv(key, raising=False)
         else:
             monkeypatch.setenv(key, value)
-    # Reload modules with updated environment
-    for module in ['main', 'app.config']:
-        if module in sys.modules:
-            del sys.modules[module]
-    main = importlib.import_module('main')
-    return main.app
+    # Reload config module to apply new env vars
+    if 'app.config' in sys.modules:
+        del sys.modules['app.config']
+    from app import create_app
+    return create_app()
 
 
 def test_testing_config_uses_memory_db(monkeypatch):
