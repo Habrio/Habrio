@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 from twilio.rest import Client
 import os
 import logging
-from utils.responses import internal_error_response
-from helpers.jwt_helpers import (
+from app.utils import internal_error_response
+from app.utils import (
     create_access_token,
     create_refresh_token,
     decode_token,

@@ -1,5 +1,5 @@
 import importlib, pytest
-from helpers.jwt_helpers import create_access_token
+from app.utils import create_access_token
 
 
 def _load(monkeypatch):

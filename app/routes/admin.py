@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
+from app.utils import auth_required
+from app.utils import role_required
 from models.user import UserProfile
 from models.shop import Shop
 from models.order import Order

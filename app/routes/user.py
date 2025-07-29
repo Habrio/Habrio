@@ -1,10 +1,10 @@
 from flask import Blueprint, request, jsonify
 from models.user import ConsumerProfile
 from models import db
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
+from app.utils import auth_required
+from app.utils import role_required
 import logging
-from utils.responses import internal_error_response
+from app.utils import internal_error_response
 
 user_bp = Blueprint("user", __name__, url_prefix="/api/v1")
 

@@ -2,7 +2,7 @@ import importlib
 import pytest
 import jwt
 import datetime as dt
-from helpers.jwt_helpers import decode_token, create_access_token, create_refresh_token
+from app.utils import decode_token, create_access_token, create_refresh_token
 
 
 def _load(monkeypatch):

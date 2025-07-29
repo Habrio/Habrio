@@ -4,8 +4,8 @@ from flask import request, jsonify
 from models.item import Item
 from models.shop import Shop
 from models import db
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
+from app.utils import auth_required
+from app.utils import role_required
 from datetime import datetime
 import pandas as pd
 from werkzeug.utils import secure_filename
@@ -13,7 +13,7 @@ import os
 import logging
 item_bp = Blueprint("item", __name__, url_prefix="/api/v1")
 
-from utils.responses import internal_error_response
+from app.utils import internal_error_response
 
 @item_bp.route("/item/add", methods=["POST"])
 @auth_required

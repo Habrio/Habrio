@@ -5,10 +5,10 @@ from models.shop import Shop
 from models.item import Item
 from models.user import UserProfile
 from models import db
-from utils.auth_decorator import auth_required
-from utils.role_decorator import role_required
+from app.utils import auth_required
+from app.utils import role_required
 import logging
-from utils.responses import internal_error_response
+from app.utils import internal_error_response
 cart_bp = Blueprint("cart", __name__, url_prefix="/api/v1/cart")
 
 

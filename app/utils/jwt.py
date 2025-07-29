@@ -27,7 +27,7 @@ def create_access_token(phone: str, role: str) -> str:
         "sub": phone,
         "role": role,
         "type": "access",
-        "exp": _exp(minutes=cfg["ACCESS_TOKEN_LIFETIME_MIN"])
+        "exp": _exp(minutes=cfg["ACCESS_TOKEN_LIFETIME_MIN"]),
     }
     return jwt.encode(payload, _secret(), algorithm="HS256")
 
@@ -37,7 +37,7 @@ def create_refresh_token(phone: str) -> str:
     payload = {
         "sub": phone,
         "type": "refresh",
-        "exp": _exp(days=cfg["REFRESH_TOKEN_LIFETIME_DAYS"])
+        "exp": _exp(days=cfg["REFRESH_TOKEN_LIFETIME_DAYS"]),
     }
     return jwt.encode(payload, _secret(), algorithm="HS256")
 
