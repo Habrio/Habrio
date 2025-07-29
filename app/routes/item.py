@@ -1,6 +1,7 @@
 from flask import Blueprint
 # --- services/item.py ---
 from flask import request, jsonify
+from app.version import API_PREFIX
 from models.item import Item
 from models.shop import Shop
 from models import db
@@ -11,7 +12,7 @@ import pandas as pd
 from werkzeug.utils import secure_filename
 import os
 import logging
-item_bp = Blueprint("item", __name__, url_prefix="/api/v1")
+item_bp = Blueprint("item", __name__, url_prefix=API_PREFIX)
 
 from app.utils import internal_error_response
 

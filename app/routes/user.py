@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from app.version import API_PREFIX
 from models.user import ConsumerProfile
 from models import db
 from app.utils import auth_required
@@ -6,7 +7,7 @@ from app.utils import role_required
 import logging
 from app.utils import internal_error_response
 
-user_bp = Blueprint("user", __name__, url_prefix="/api/v1")
+user_bp = Blueprint("user", __name__, url_prefix=API_PREFIX)
 
 # Basic onboarding -------------
 @user_bp.route("/onboarding/basic", methods=["POST"])

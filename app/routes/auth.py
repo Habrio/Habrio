@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app
+from app.version import API_PREFIX
 from flask_limiter.util import get_remote_address
 from extensions import limiter
 from models.user import OTP, UserProfile
@@ -6,7 +7,6 @@ from models import db
 import random
 from datetime import datetime, timedelta
 from twilio.rest import Client
-import os
 import logging
 from app.utils import internal_error_response
 from app.utils import (
@@ -17,7 +17,7 @@ from app.utils import (
 )
 
 
-auth_bp = Blueprint("auth", __name__, url_prefix="/api/v1")
+auth_bp = Blueprint("auth", __name__, url_prefix=API_PREFIX)
 
 # --- Logout handler ---
 @auth_bp.route("/logout", methods=["POST"])
@@ -55,17 +55,18 @@ def refresh_tokens():
 
 # --- Twilio Configuration ---
 
-twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
-twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
-whatsapp_from = os.getenv("TWILIO_WHATSAPP_FROM")
+def init_twilio(app):
+    sid = app.config.get("TWILIO_ACCOUNT_SID")
+    token = app.config.get("TWILIO_AUTH_TOKEN")
+    whatsapp_from = app.config.get("TWILIO_WHATSAPP_FROM")
+    if not all([sid, token, whatsapp_from]):
+        logging.warning("Twilio credentials missing; using dummy values for testing")
+        sid = sid or "dummy"
+        token = token or "dummy"
+        whatsapp_from = whatsapp_from or "dummy"
+    app.twilio_client = Client(sid, token)
+    app.config["TWILIO_WHATSAPP_FROM"] = whatsapp_from
 
-if not all([twilio_sid, twilio_token, whatsapp_from]):
-    logging.warning("Twilio credentials missing; using dummy values for testing")
-    twilio_sid = twilio_sid or "dummy"
-    twilio_token = twilio_token or "dummy"
-    whatsapp_from = whatsapp_from or "dummy"
-
-client = Client(twilio_sid, twilio_token)
 
 # --- OTP Utility ---
 
@@ -75,6 +76,8 @@ def generate_otp():
 
 def send_whatsapp_message(to, body):
     try:
+        client = current_app.twilio_client
+        whatsapp_from = current_app.config.get("TWILIO_WHATSAPP_FROM")
         message = client.messages.create(
             from_=whatsapp_from,
             to=f"whatsapp:{to}",

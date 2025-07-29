@@ -28,15 +28,16 @@ def configure_logging(app):
 
     app.logger.handlers.clear()
     app.logger.addHandler(handler)
-    app.logger.setLevel(logging.INFO)
+    level = logging.DEBUG if app.config.get("DEBUG") else logging.INFO
+    app.logger.setLevel(level)
 
     root = logging.getLogger()
     if not any(isinstance(h, logging.StreamHandler) for h in root.handlers):
         root.addHandler(handler)
-    root.setLevel(logging.INFO)
+    root.setLevel(level)
 
     wl = logging.getLogger("werkzeug")
-    wl.setLevel(logging.INFO)
+    wl.setLevel(level)
     wl.handlers.clear()
     wl.addHandler(handler)
 

@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from app.version import API_PREFIX
 from models.vendor import VendorProfile, VendorDocument, VendorPayoutBank
 from models import db
 from app.utils import auth_required
@@ -7,7 +8,7 @@ from datetime import datetime
 import logging
 from app.utils import internal_error_response
 
-vendor_bp = Blueprint("vendor", __name__, url_prefix="/api/v1/vendor")
+vendor_bp = Blueprint("vendor", __name__, url_prefix=f"{API_PREFIX}/vendor")
 
 # Vendor Onboarding -----------------
 @vendor_bp.route("/profile", methods=["POST"])

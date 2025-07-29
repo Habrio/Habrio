@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
 from app.utils import auth_required
+from app.version import API_PREFIX
 from agent.agent_core import run_agent
 
 # Optional blueprint for AI assistant
-agent_bp = Blueprint('agent', __name__, url_prefix='/api/v1/agent')
+agent_bp = Blueprint('agent', __name__, url_prefix=f'{API_PREFIX}/agent')
 
 @agent_bp.route('/query', methods=['POST'])
 @auth_required
