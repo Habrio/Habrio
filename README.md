@@ -66,3 +66,31 @@ Basic admin endpoints protected by JWT auth and `admin` role:
 ### Optional AI assistant
 
 If `OPENAI_API_KEY` is provided in the environment, the service exposes `/api/v1/agent/query` for chat-based assistance. The endpoint requires authentication and returns the assistant's answer along with suggestions.
+
+## Docker
+
+The application can be run in a container using the included `Dockerfile`.
+
+### Build
+```bash
+docker build -t habrio .
+```
+
+### Run
+```bash
+docker run -p 80:80 \
+  -e SECRET_KEY=changeme \
+  -e DATABASE_URL=sqlite:///data.db \
+  habrio
+```
+
+Set `APP_ENV=production` by default in the image. Provide `SECRET_KEY` and
+`DATABASE_URL` at runtime via environment variables or Docker secrets.
+
+A `docker-compose.yml` is included for local development with PostgreSQL.
+
+## Continuous Integration
+
+GitHub Actions will run the test suite on every push and pull request to `main`.
+The workflow installs dependencies, runs `pytest`, and ensures the Docker image
+builds successfully.
