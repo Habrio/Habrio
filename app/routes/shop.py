@@ -1,3 +1,4 @@
+from flask import Blueprint
 from flask import request, jsonify
 from models.shop import Shop, ShopHours, ShopActionLog
 from datetime import datetime
@@ -6,9 +7,12 @@ from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
 from models.vendor import VendorProfile
 import logging
+shop_bp = Blueprint("shop", __name__, url_prefix="/api/v1")
+
 from utils.responses import internal_error_response
 
 # --- Create shop by vendor ---
+@shop_bp.route("/vendor/create-shop", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def create_shop():
@@ -60,6 +64,7 @@ def create_shop():
 
     return jsonify({"status": "success", "message": "Shop created"}), 200
 
+@shop_bp.route("/shop/edit", methods=["POST"])
 # --- Edit shop by vendor ---
 @auth_required
 @role_required(["vendor"])
@@ -92,6 +97,7 @@ def edit_shop():
     return jsonify({"status": "success", "message": "Shop updated"}), 200
 
 # --- Get shop by vendor ---
+@shop_bp.route("/shop/my", methods=["GET"])
 @auth_required
 @role_required(["vendor", "admin"])
 def get_my_shop():
@@ -139,6 +145,7 @@ def get_my_shop():
         return jsonify({"status": "success", "data": result}), 200
 
 # --- Update shop hours ---
+@shop_bp.route("/shop/update-hours", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def update_shop_hours():
@@ -190,6 +197,7 @@ def update_shop_hours():
 
 # Toggle shop status --------------------
 
+@shop_bp.route("/vendor/shop/toggle_status", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def toggle_shop_status():
@@ -273,6 +281,7 @@ def list_shops():
     return jsonify({"status": "success", "shops": result}), 200
 
 # Search shops by name or type
+@shop_bp.route("/shops/search", methods=["GET"])
 @auth_required
 @role_required(["consumer"])
 def search_shops():

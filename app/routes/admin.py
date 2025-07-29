@@ -5,7 +5,7 @@ from models.user import UserProfile
 from models.shop import Shop
 from models.order import Order
 
-admin_bp = Blueprint("admin_bp", __name__)
+admin_bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
 
 @admin_bp.route("/users", methods=["GET"])
 @auth_required

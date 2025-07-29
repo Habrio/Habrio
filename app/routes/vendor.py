@@ -1,4 +1,4 @@
-from flask import request, jsonify
+from flask import Blueprint, request, jsonify
 from models.vendor import VendorProfile, VendorDocument, VendorPayoutBank
 from models import db
 from utils.auth_decorator import auth_required
@@ -7,9 +7,10 @@ from datetime import datetime
 import logging
 from utils.responses import internal_error_response
 
+vendor_bp = Blueprint("vendor", __name__, url_prefix="/api/v1/vendor")
 
 # Vendor Onboarding -----------------
-
+@vendor_bp.route("/profile", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def vendor_profile_setup():
@@ -37,7 +38,7 @@ def vendor_profile_setup():
         gst_number=gst_number,
         address=address,
         business_type=business_type,
-        kyc_status="pending"
+        kyc_status="pending",
     )
     db.session.add(profile)
     try:
@@ -50,7 +51,7 @@ def vendor_profile_setup():
     return jsonify({"status": "success", "message": "Vendor profile created"}), 200
 
 # Vendor Onboarding Documents-----------------
-
+@vendor_bp.route("/upload-document", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def upload_vendor_document():
@@ -66,7 +67,7 @@ def upload_vendor_document():
     new_doc = VendorDocument(
         vendor_phone=user.phone,
         document_type=doc_type,
-        file_url=file_url
+        file_url=file_url,
     )
     db.session.add(new_doc)
     try:
@@ -79,7 +80,7 @@ def upload_vendor_document():
     return jsonify({"status": "success", "message": "Document uploaded"}), 200
 
 # Vendor Payout info ----------------
-
+@vendor_bp.route("/payout/setup", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def setup_payout_bank():

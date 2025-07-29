@@ -1,3 +1,4 @@
+from flask import Blueprint
 # --- services/item.py ---
 from flask import request, jsonify
 from models.item import Item
@@ -10,8 +11,11 @@ import pandas as pd
 from werkzeug.utils import secure_filename
 import os
 import logging
+item_bp = Blueprint("item", __name__, url_prefix="/api/v1")
+
 from utils.responses import internal_error_response
 
+@item_bp.route("/item/add", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def add_item():
@@ -56,6 +60,7 @@ def add_item():
 
     return jsonify({"status": "success", "message": "Item added"}), 200
 
+@item_bp.route("/item/<int:item_id>/toggle", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def toggle_item_availability(item_id):
@@ -76,6 +81,7 @@ def toggle_item_availability(item_id):
 
     return jsonify({"status": "success", "message": "Item availability updated"}), 200
 
+@item_bp.route("/item/update/<int:item_id>", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def update_item(item_id):
@@ -111,6 +117,7 @@ def update_item(item_id):
         return internal_error_response()
     return jsonify({"status": "success", "message": "Item updated"}), 200
 
+@item_bp.route("/item/my", methods=["GET"])
 @auth_required
 @role_required(["vendor"])
 def get_items():
@@ -143,6 +150,7 @@ def get_items():
     ]
     return jsonify({"status": "success", "data": result}), 200
 
+@item_bp.route("/item/bulk-upload", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def bulk_upload_items():
@@ -209,6 +217,7 @@ def bulk_upload_items():
     return jsonify({"status": "success", "message": f"{created} items uploaded"}), 200
 
 
+@item_bp.route("/items/shop/<int:shop_id>", methods=["GET"])
 @auth_required
 @role_required(["consumer"])
 def view_items_by_shop(shop_id):
