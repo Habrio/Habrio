@@ -9,7 +9,7 @@ def _load_app(monkeypatch):
     monkeypatch.setenv("TWILIO_ACCOUNT_SID", "dummy")
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "dummy")
     monkeypatch.setenv("TWILIO_WHATSAPP_FROM", "dummy")
-    import main as entry
+    import wsgi as entry
     importlib.reload(entry)
     return entry.app
 
