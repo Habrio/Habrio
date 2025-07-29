@@ -50,8 +50,10 @@ swagger = Swagger(app, config={
     "specs_route": "/docs/"
 })
 metrics = PrometheusMetrics(app, path='/metrics')
-if not app.config.get("TESTING"):
-    metrics.info('app_info', 'Application info', version='1.0.0')
+# Avoid duplicated app_info metrics if this module gets imported multiple times
+if not app.config.get("TESTING") and not os.environ.get("METRICS_APP_INFO_SET"):
+    metrics.info("app_info", "Application info", version="1.0.0")
+    os.environ["METRICS_APP_INFO_SET"] = "1"
 
 # Configure CORS based on allowed origins
 allowed = app.config.get("CORS_ALLOWED_ORIGINS", "*")
