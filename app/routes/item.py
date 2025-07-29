@@ -218,7 +218,8 @@ def bulk_upload_items():
     return jsonify({"status": "success", "message": f"{created} items uploaded"}), 200
 
 
-@item_bp.route("/items/shop/<int:shop_id>", methods=["GET"])
+# View items available in a given shop
+@item_bp.route("/shop/<int:shop_id>/items", methods=["GET"])
 @auth_required
 @role_required(["consumer"])
 def view_items_by_shop(shop_id):
