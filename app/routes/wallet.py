@@ -1,3 +1,4 @@
+from flask import Blueprint
 # services/wallet.py
 
 from flask import request, jsonify
@@ -7,8 +8,10 @@ from models.wallet import (
     WalletTransaction,
     VendorWallet,
     VendorWalletTransaction,
+
 )
 from models.vendor import VendorPayoutBank
+wallet_bp = Blueprint("wallet", __name__, url_prefix="/api/v1")
 from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
 from decimal import Decimal
@@ -23,6 +26,7 @@ from app.services.wallet_ops import (
 
 # ------------------- Get or Create Consumer Wallet -------------------
 @auth_required
+@wallet_bp.route("/wallet", methods=["GET"])
 @role_required(["consumer"])
 def get_or_create_wallet():
     """Return the consumer wallet for the authenticated user, creating one if needed."""
@@ -41,6 +45,7 @@ def get_or_create_wallet():
 
 
 # ------------------- Consumer Wallet Transactions -------------------
+@wallet_bp.route("/wallet/history", methods=["GET"])
 @auth_required
 @role_required(["consumer"])
 def wallet_transaction_history():
@@ -50,6 +55,7 @@ def wallet_transaction_history():
     return jsonify({"status": "success", "transactions": result}), 200
 
 
+@wallet_bp.route("/wallet/load", methods=["POST"])
 # ------------------- Load Consumer Wallet -------------------
 @auth_required
 @role_required(["consumer"])
@@ -79,6 +85,7 @@ def load_wallet():
         logging.error("Failed to load wallet: %s", e, exc_info=True)
         return internal_error_response()
 
+@wallet_bp.route("/wallet/debit", methods=["POST"])
 
 # ------------------- Debit Consumer Wallet -------------------
 @auth_required
@@ -110,6 +117,7 @@ def debit_wallet():
 
 
 # ------------------- Refund to Consumer Wallet -------------------
+@wallet_bp.route("/wallet/refund", methods=["POST"])
 @auth_required
 @role_required(["consumer"])
 def refund_wallet():
@@ -140,6 +148,7 @@ def refund_wallet():
 
 # ------------------- Get or Create Vendor Wallet -------------------
 @auth_required
+@wallet_bp.route("/vendor/wallet", methods=["GET"])
 @role_required(["vendor"])
 def get_vendor_wallet():
     """Return or create the vendor wallet for the authenticated vendor."""
@@ -158,6 +167,7 @@ def get_vendor_wallet():
 
 
 # ------------------- Vendor Wallet Transactions -------------------
+@wallet_bp.route("/vendor/wallet/history", methods=["GET"])
 @auth_required
 @role_required(["vendor"])
 def get_vendor_wallet_history():
@@ -170,6 +180,7 @@ def get_vendor_wallet_history():
 # ------------------- Credit Vendor Wallet -------------------
 @auth_required
 @role_required(["vendor"])
+@wallet_bp.route("/vendor/wallet/credit", methods=["POST"])
 def credit_vendor_wallet():
     """Credit the vendor's wallet with the provided amount."""
     user = request.user
@@ -200,6 +211,7 @@ def credit_vendor_wallet():
 
 
 # ------------------- Debit Vendor Wallet -------------------
+@wallet_bp.route("/vendor/wallet/debit", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def debit_vendor_wallet():
@@ -229,6 +241,7 @@ def debit_vendor_wallet():
 
 
 # ------------------- Withdraw Vendor Wallet to Bank -------------------
+@wallet_bp.route("/vendor/wallet/withdraw", methods=["POST"])
 @auth_required
 @role_required(["vendor"])
 def withdraw_vendor_wallet():

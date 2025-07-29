@@ -1,3 +1,4 @@
+from flask import Blueprint
 from flask import request, jsonify
 from models.cart import CartItem
 from models.shop import Shop
@@ -8,10 +9,13 @@ from utils.auth_decorator import auth_required
 from utils.role_decorator import role_required
 import logging
 from utils.responses import internal_error_response
+cart_bp = Blueprint("cart", __name__, url_prefix="/api/v1/cart")
+
 
 MAX_QUANTITY_PER_ITEM = 10  # Set your max quantity per item limit here
 
 # Add item to cart
+@cart_bp.route("/add", methods=["POST"])
 @auth_required
 @role_required("consumer")
 def add_to_cart():
@@ -55,6 +59,7 @@ def add_to_cart():
 
 
 # Update quantity of an item
+@cart_bp.route("/update", methods=["POST"])
 @auth_required
 @role_required("consumer")
 def update_cart_quantity():
@@ -84,6 +89,7 @@ def update_cart_quantity():
 
 
 # View cart with availability and price refresh
+@cart_bp.route("/view", methods=["GET"])
 @auth_required
 @role_required("consumer")
 def view_cart():
@@ -133,6 +139,7 @@ def view_cart():
 
 
 
+@cart_bp.route("/remove", methods=["POST"])
 # Remove single item
 @auth_required
 @role_required("consumer")
@@ -156,6 +163,7 @@ def remove_item():
 
 
 # Clear cart
+@cart_bp.route("/clear", methods=["POST"])
 @auth_required
 @role_required("consumer")
 def clear_cart():

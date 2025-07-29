@@ -5,12 +5,8 @@ from utils.role_decorator import role_required
 import logging
 from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance, InsufficientFunds
 from helpers.jwt_helpers import create_access_token, create_refresh_token
-from services.consumerorder import _confirm_order_core, _confirm_modified_order_core, _cancel_order_consumer_core
-from services.vendororder import (
-    _vendor_update_order_status_core,
-    _vendor_cancel_order_core,
-    _vendor_complete_return_core,
-)
+from app.routes.order import _confirm_order_core, _confirm_modified_order_core, _cancel_order_consumer_core
+from app.routes.order import (_vendor_update_order_status_core, _vendor_cancel_order_core, _vendor_complete_return_core)
 from models import db
 from models.user import UserProfile
 from models.shop import Shop
