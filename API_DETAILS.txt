@@ -52,28 +52,28 @@ POST /onboarding/basic
     Example response:
         {"status": "success", "message": "Basic onboarding complete"}
 
-POST /onboarding/consumer
+POST /consumer/onboarding
     - Auth + consumer role.
     - Body with consumer specific fields (flat_number, profile_image_url, gender, date_of_birth, preferred_language).
     - Creates consumer profile and marks role onboarding done.
     Example request:
-        POST /api/v1/onboarding/consumer
+        POST /api/v1/consumer/onboarding
         {"flat_number": "101", "preferred_language": "en"}
     Example response:
         {"status": "success", "message": "Consumer onboarding done"}
 
-GET /profile/me
+GET /consumer/profile/me
     - Auth + consumer role. Returns consumer profile details for current user.
     Example request:
-        GET /api/v1/profile/me
+        GET /api/v1/consumer/profile/me
     Example response:
         {"status": "success", "data": {"name": "Alice", "city": "Metropolis", ...}}
 
-POST /profile/edit
+POST /consumer/profile/edit
     - Auth + consumer role. Body may contain flat_number, profile_image_url, gender, date_of_birth, preferred_language.
     - Updates consumer profile.
     Example request:
-        POST /api/v1/profile/edit
+        POST /api/v1/consumer/profile/edit
         {"flat_number": "102"}
     Example response:
         {"status": "success", "message": "Profile updated"}
@@ -159,11 +159,18 @@ POST /vendor/shop/toggle_status
     Example response:
         {"status": "success", "message": "Shop marked as opened"}
 
-GET /shops/search
+GET /consumer/shops
+    - Auth + consumer role. Lists shops in user's city and society with optional filters: status=open|closed, type, tag.
+    Example request:
+        GET /api/v1/consumer/shops
+    Example response:
+        {"status": "success", "shops": [...]} 
+
+GET /consumer/shops/search
     - Auth + consumer role.
     - Query params: q (search text). Returns shops in user city/society whose name or type matches and are open.
     Example request:
-        GET /api/v1/shops/search?q=grocery
+        GET /api/v1/consumer/shops/search?q=grocery
     Example response:
         {"status": "success", "shops": [...]} 
 
@@ -217,82 +224,82 @@ GET /shop/<shop_id>/items
 
 Cart
 ----
-POST /cart/add
+POST /consumer/cart/add
     - Auth + consumer role. Body: item_id, quantity.
     - Adds item to cart (same shop only, 1..10 quantity each).
     Example request:
-        POST /api/v1/cart/add
+        POST /api/v1/consumer/cart/add
         {"item_id": 1, "quantity": 2}
     Example response:
         {"status": "success", "message": "Item added to cart"}
 
-POST /cart/update
+POST /consumer/cart/update
     - Auth + consumer role. Body: item_id, quantity.
     - Sets quantity for existing cart item within limits.
     Example request:
-        POST /api/v1/cart/update
+        POST /api/v1/consumer/cart/update
         {"item_id": 1, "quantity": 3}
     Example response:
         {"status": "success", "message": "Cart updated"}
 
-GET /cart/view
+GET /consumer/cart/view
     - Auth + consumer role. Returns cart items with latest pricing, availability, totals and savings.
     Example request:
-        GET /api/v1/cart/view
+        GET /api/v1/consumer/cart/view
     Example response:
         {"status": "success", "cart": {...}}
 
-POST /cart/remove
+POST /consumer/cart/remove
     - Auth + consumer role. Body: item_id. Removes single item from cart.
     Example request:
-        POST /api/v1/cart/remove
+        POST /api/v1/consumer/cart/remove
         {"item_id": 1}
     Example response:
         {"status": "success", "message": "Item removed"}
 
-POST /cart/clear
+POST /consumer/cart/clear
     - Auth + consumer role. Clears entire cart.
     Example request:
-        POST /api/v1/cart/clear
+        POST /api/v1/consumer/cart/clear
     Example response:
         {"status": "success", "message": "Cart cleared"}
 
 Wallet
 ------
-GET /wallet
+GET /consumer/wallet
     - Auth + consumer role. Returns wallet balance, creating wallet if needed.
     Example request:
-        GET /api/v1/wallet
+        GET /api/v1/consumer/wallet
     Example response:
         {"status": "success", "balance": 0.0}
 
-GET /wallet/history
+GET /consumer/wallet/history
     - Auth + consumer role. Returns last 50 wallet transactions.
     Example request:
-        GET /api/v1/wallet/history
+        GET /api/v1/consumer/wallet/history
     Example response:
         {"status": "success", "transactions": [...]} 
 
-POST /wallet/load
+POST /consumer/wallet/load
     - Auth + consumer role. Body: amount, reference(optional). Credits wallet.
     Example request:
-        POST /api/v1/wallet/load
+        POST /api/v1/consumer/wallet/load
         {"amount": 100}
     Example response:
         {"status": "success", "balance": 100.0}
 
-POST /wallet/debit
+POST /consumer/wallet/debit
     - Auth + consumer role. Body: amount, reference(optional). Debits wallet if sufficient funds.
     Example request:
-        POST /api/v1/wallet/debit
+        POST /api/v1/consumer/wallet/debit
         {"amount": 20}
     Example response:
         {"status": "success", "balance": 80.0}
 
-POST /wallet/refund
+POST /consumer/wallet/refund
     - Auth + consumer role. Body: amount, reference(optional). Refunds to wallet.
     Example request:
-        POST /api/v1/wallet/refund
+        POST /api/v1/consumer/wallet/refund
         {"amount": 10}
     Example response:
         {"status": "success", "balance": 90.0}
@@ -337,71 +344,71 @@ POST /vendor/wallet/withdraw
 
 Order (Consumer)
 ----------------
-POST /order/confirm
+POST /consumer/order/confirm
     - Auth + consumer role. Body: payment_mode (cash or wallet), delivery_notes.
     - Creates order from cart, debits wallet if payment_mode=wallet. Returns order_id.
     Example request:
-        POST /api/v1/order/confirm
+        POST /api/v1/consumer/order/confirm
         {"payment_mode": "wallet"}
     Example response:
         {"status": "success", "order_id": 1}
 
-GET /order/history
+GET /consumer/order/history
     - Auth + consumer role. Returns order history with items and totals.
     Example request:
-        GET /api/v1/order/history
+        GET /api/v1/consumer/order/history
     Example response:
         {"status": "success", "orders": [...]} 
 
-POST /order/consumer/confirm-modified/<order_id>
+POST /consumer/order/confirm-modified/<order_id>
     - Auth + consumer role. Confirms vendor modifications to order and refunds difference if any.
     Example request:
-        POST /api/v1/order/consumer/confirm-modified/1
+        POST /api/v1/consumer/order/confirm-modified/1
     Example response:
         {"status": "success", "refund": 5.0}
 
-POST /order/consumer/cancel/<order_id>
+POST /consumer/order/cancel/<order_id>
     - Auth + consumer role. Cancels order and refunds if prepaid.
     Example request:
-        POST /api/v1/order/consumer/cancel/1
+        POST /api/v1/consumer/order/cancel/1
     Example response:
         {"status": "success", "message": "Order cancelled", "refund": 10.0}
 
-POST /order/consumer/message/send/<order_id>
+POST /consumer/order/message/send/<order_id>
     - Auth + consumer role. Body: message. Sends message on order.
     Example request:
-        POST /api/v1/order/consumer/message/send/1
+        POST /api/v1/consumer/order/message/send/1
         {"message": "When will it arrive?"}
     Example response:
         {"status": "success", "message": "Message sent"}
 
-GET /order/consumer/messages/<order_id>
+GET /consumer/order/messages/<order_id>
     - Auth + consumer role. Retrieves message history for order.
     Example request:
-        GET /api/v1/order/consumer/messages/1
+        GET /api/v1/consumer/order/messages/1
     Example response:
         {"status": "success", "messages": [...]} 
 
-POST /order/rate/<order_id>
+POST /consumer/order/rate/<order_id>
     - Auth + consumer role. Body: rating (1-5), review(optional). Rates delivered order.
     Example request:
-        POST /api/v1/order/rate/1
+        POST /api/v1/consumer/order/rate/1
         {"rating": 5, "review": "Great"}
     Example response:
         {"status": "success", "message": "Thank you for rating!"}
 
-POST /order/issue/<order_id>
+POST /consumer/order/issue/<order_id>
     - Auth + consumer role. Body: issue_type, description. Raises issue for delivered order.
     Example request:
-        POST /api/v1/order/issue/1
+        POST /api/v1/consumer/order/issue/1
         {"issue_type": "missing_item", "description": "Item X not delivered"}
     Example response:
         {"status": "success", "message": "Issue raised"}
 
-POST /order/return/raise/<order_id>
+POST /consumer/order/return/raise/<order_id>
     - Auth + consumer role. Body: reason, items[{item_id, quantity}]. Requests return of items from delivered order.
     Example request:
-        POST /api/v1/order/return/raise/1
+        POST /api/v1/consumer/order/return/raise/1
         {"reason": "damaged", "items": [{"item_id": 1, "quantity": 1}]}
     Example response:
         {"status": "success", "message": "Return request sent"}

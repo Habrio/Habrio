@@ -23,15 +23,15 @@ def do_basic_onboarding(client, token, name='User', city='Town', society='Societ
 
 
 def do_consumer_onboarding(client, token, **extra):
-    return client.post(f"{API_PREFIX}/onboarding/consumer", json=extra, headers={'Authorization': f'Bearer {token}'})
+    return client.post(f"{API_PREFIX}/consumer/onboarding", json=extra, headers={'Authorization': f'Bearer {token}'})
 
 
 def get_profile(client, token):
-    return client.get(f"{API_PREFIX}/profile/me", headers={'Authorization': f'Bearer {token}'})
+    return client.get(f"{API_PREFIX}/consumer/profile/me", headers={'Authorization': f'Bearer {token}'})
 
 
 def edit_profile(client, token, data):
-    return client.post(f"{API_PREFIX}/profile/edit", json=data, headers={'Authorization': f'Bearer {token}'})
+    return client.post(f"{API_PREFIX}/consumer/profile/edit", json=data, headers={'Authorization': f'Bearer {token}'})
 
 
 

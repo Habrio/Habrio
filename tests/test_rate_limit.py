@@ -22,5 +22,5 @@ def test_order_confirm_rate_limit(monkeypatch):
     app = _load_app(monkeypatch)
     client = app.test_client()
     for i in range(21):
-        r = client.post(f"{API_PREFIX}/order/confirm", json={"dummy": "ok"})
+        r = client.post(f"{API_PREFIX}/consumer/order/confirm", json={"dummy": "ok"})
     assert r.status_code == 429
