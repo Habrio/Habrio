@@ -1,0 +1,525 @@
+API Routes Summary
+==================
+
+Base path for versioned APIs: /api/v1
+
+Authentication
+--------------
+POST /logout
+    - Requires Authorization header with access token.
+    - Returns success message when token is valid.
+    Example request:
+        POST /api/v1/logout
+        Authorization: Bearer <access_token>
+    Example response:
+        {"status": "success", "message": "Logged out"}
+
+POST /auth/refresh
+    - Body: {"refresh_token": str}
+    - On valid refresh token returns new access and refresh tokens and expiry time.
+    Example request:
+        POST /api/v1/auth/refresh
+        {"refresh_token": "<token>"}
+    Example response:
+        {"access_token": "...", "refresh_token": "...", "expires_in": 900}
+
+POST /send-otp
+    - Body: {"phone": str}
+    - Generates OTP for phone. Rate limited by IP and phone. Returns generic success.
+    Example request:
+        POST /api/v1/send-otp
+        {"phone": "+15555555555"}
+    Example response:
+        {"status": "success", "message": "OTP sent"}
+
+POST /verify-otp
+    - Body: {"phone": str, "otp": str}
+    - Verifies OTP, creates/updates user profile, and returns access/refresh tokens plus onboarding status.
+    Example request:
+        POST /api/v1/verify-otp
+        {"phone": "+15555555555", "otp": "123456"}
+    Example response:
+        {"status": "success", "access_token": "...", "refresh_token": "...", "expires_in": 900, "basic_onboarding_done": false}
+
+User
+----
+POST /onboarding/basic
+    - Auth required. Body must include name, city, society and role.
+    - Marks user's basic onboarding complete.
+    Example request:
+        POST /api/v1/onboarding/basic
+        {"name": "Alice", "city": "Metropolis", "society": "Apt1", "role": "consumer"}
+    Example response:
+        {"status": "success", "message": "Basic onboarding complete"}
+
+POST /onboarding/consumer
+    - Auth + consumer role.
+    - Body with consumer specific fields (flat_number, profile_image_url, gender, date_of_birth, preferred_language).
+    - Creates consumer profile and marks role onboarding done.
+    Example request:
+        POST /api/v1/onboarding/consumer
+        {"flat_number": "101", "preferred_language": "en"}
+    Example response:
+        {"status": "success", "message": "Consumer onboarding done"}
+
+GET /profile/me
+    - Auth + consumer role. Returns consumer profile details for current user.
+    Example request:
+        GET /api/v1/profile/me
+    Example response:
+        {"status": "success", "data": {"name": "Alice", "city": "Metropolis", ...}}
+
+POST /profile/edit
+    - Auth + consumer role. Body may contain flat_number, profile_image_url, gender, date_of_birth, preferred_language.
+    - Updates consumer profile.
+    Example request:
+        POST /api/v1/profile/edit
+        {"flat_number": "102"}
+    Example response:
+        {"status": "success", "message": "Profile updated"}
+
+Vendor
+------
+POST /vendor/profile
+    - Auth + vendor role.
+    - Body: business_type, business_name, gst_number?, address.
+    - Creates vendor profile. Error if already exists.
+    Example request:
+        POST /api/v1/vendor/profile
+        {"business_type": "retail", "business_name": "ShopCo"}
+    Example response:
+        {"status": "success", "message": "Vendor profile created"}
+
+POST /vendor/upload-document
+    - Auth + vendor role.
+    - Body: document_type, file_url.
+    - Stores vendor document entry.
+    Example request:
+        POST /api/v1/vendor/upload-document
+        {"document_type": "gst", "file_url": "https://..."}
+    Example response:
+        {"status": "success", "message": "Document uploaded"}
+
+POST /vendor/payout/setup
+    - Auth + vendor role.
+    - Body: bank_name, account_number, ifsc_code.
+    - Creates or updates payout bank info.
+    Example request:
+        POST /api/v1/vendor/payout/setup
+        {"bank_name": "ABC", "account_number": "123456", "ifsc_code": "ABC0123"}
+    Example response:
+        {"status": "success", "message": "Payout bank saved"}
+
+Shop
+----
+POST /vendor/create-shop
+    - Auth + vendor role.
+    - Body: shop_name, shop_type, optional description, delivers, appointment_only, is_open, category_tags, logo_url, featured, verified.
+    - Creates shop for vendor.
+    Example request:
+        POST /api/v1/vendor/create-shop
+        {"shop_name": "My Shop", "shop_type": "grocery"}
+    Example response:
+        {"status": "success", "message": "Shop created"}
+
+POST /shop/edit
+    - Auth + vendor role.
+    - Body fields to update existing shop owned by vendor.
+    Example request:
+        POST /api/v1/shop/edit
+        {"description": "Open 24/7"}
+    Example response:
+        {"status": "success", "message": "Shop updated"}
+
+GET /shop/my
+    - Auth + vendor or admin role.
+    - Vendor receives its shop data. Admin receives all shops.
+    Example request:
+        GET /api/v1/shop/my
+    Example response:
+        {"status": "success", "data": {...}}
+
+POST /shop/update-hours
+    - Auth + vendor role.
+    - Body: {"weekly_hours": [{"day_of_week": int, "open_time": "HH:MM", "close_time": "HH:MM"} ...]}
+    - Replaces stored hours for vendor's shop.
+    Example request:
+        POST /api/v1/shop/update-hours
+        {"weekly_hours": [{"day_of_week": 1, "open_time": "09:00", "close_time": "18:00"}]}
+    Example response:
+        {"status": "success", "message": "Shop hours updated"}
+
+POST /vendor/shop/toggle_status
+    - Auth + vendor role.
+    - Body: {"is_open": true|false}
+    - Marks shop open or closed and logs action.
+    Example request:
+        POST /api/v1/vendor/shop/toggle_status
+        {"is_open": true}
+    Example response:
+        {"status": "success", "message": "Shop marked as opened"}
+
+GET /shops/search
+    - Auth + consumer role.
+    - Query params: q (search text). Returns shops in user city/society whose name or type matches and are open.
+    Example request:
+        GET /api/v1/shops/search?q=grocery
+    Example response:
+        {"status": "success", "shops": [...]} 
+
+Item
+----
+POST /item/add
+    - Auth + vendor role. Body requires title and price, plus optional details.
+    - Adds item to vendor's shop.
+    Example request:
+        POST /api/v1/item/add
+        {"title": "Milk", "price": 2.5}
+    Example response:
+        {"status": "success", "message": "Item added"}
+
+POST /item/<item_id>/toggle
+    - Auth + vendor role. Toggles availability of given item if owned by vendor.
+    Example request:
+        POST /api/v1/item/1/toggle
+    Example response:
+        {"status": "success", "message": "Item availability updated"}
+
+POST /item/update/<item_id>
+    - Auth + vendor role. Body with fields to update item.
+    Example request:
+        POST /api/v1/item/update/1
+        {"price": 3.0}
+    Example response:
+        {"status": "success", "message": "Item updated"}
+
+GET /item/my
+    - Auth + vendor role. Returns list of vendor's items.
+    Example request:
+        GET /api/v1/item/my
+    Example response:
+        {"status": "success", "data": [...]}
+
+POST /item/bulk-upload
+    - Auth + vendor role. Multipart file "file" (.csv/.xls/.xlsx) containing item rows with at least title and price.
+    - Creates items in vendor's shop; returns count created.
+    Example request:
+        POST /api/v1/item/bulk-upload (multipart/form-data with file)
+    Example response:
+        {"status": "success", "message": "X items uploaded"}
+
+GET /shop/<shop_id>/items
+    - Auth + consumer role. Returns available items in given open shop.
+    Example request:
+        GET /api/v1/shop/1/items
+    Example response:
+        {"status": "success", "items": [...]} 
+
+Cart
+----
+POST /cart/add
+    - Auth + consumer role. Body: item_id, quantity.
+    - Adds item to cart (same shop only, 1..10 quantity each).
+    Example request:
+        POST /api/v1/cart/add
+        {"item_id": 1, "quantity": 2}
+    Example response:
+        {"status": "success", "message": "Item added to cart"}
+
+POST /cart/update
+    - Auth + consumer role. Body: item_id, quantity.
+    - Sets quantity for existing cart item within limits.
+    Example request:
+        POST /api/v1/cart/update
+        {"item_id": 1, "quantity": 3}
+    Example response:
+        {"status": "success", "message": "Cart updated"}
+
+GET /cart/view
+    - Auth + consumer role. Returns cart items with latest pricing, availability, totals and savings.
+    Example request:
+        GET /api/v1/cart/view
+    Example response:
+        {"status": "success", "cart": {...}}
+
+POST /cart/remove
+    - Auth + consumer role. Body: item_id. Removes single item from cart.
+    Example request:
+        POST /api/v1/cart/remove
+        {"item_id": 1}
+    Example response:
+        {"status": "success", "message": "Item removed"}
+
+POST /cart/clear
+    - Auth + consumer role. Clears entire cart.
+    Example request:
+        POST /api/v1/cart/clear
+    Example response:
+        {"status": "success", "message": "Cart cleared"}
+
+Wallet
+------
+GET /wallet
+    - Auth + consumer role. Returns wallet balance, creating wallet if needed.
+    Example request:
+        GET /api/v1/wallet
+    Example response:
+        {"status": "success", "balance": 0.0}
+
+GET /wallet/history
+    - Auth + consumer role. Returns last 50 wallet transactions.
+    Example request:
+        GET /api/v1/wallet/history
+    Example response:
+        {"status": "success", "transactions": [...]} 
+
+POST /wallet/load
+    - Auth + consumer role. Body: amount, reference(optional). Credits wallet.
+    Example request:
+        POST /api/v1/wallet/load
+        {"amount": 100}
+    Example response:
+        {"status": "success", "balance": 100.0}
+
+POST /wallet/debit
+    - Auth + consumer role. Body: amount, reference(optional). Debits wallet if sufficient funds.
+    Example request:
+        POST /api/v1/wallet/debit
+        {"amount": 20}
+    Example response:
+        {"status": "success", "balance": 80.0}
+
+POST /wallet/refund
+    - Auth + consumer role. Body: amount, reference(optional). Refunds to wallet.
+    Example request:
+        POST /api/v1/wallet/refund
+        {"amount": 10}
+    Example response:
+        {"status": "success", "balance": 90.0}
+
+GET /vendor/wallet
+    - Auth + vendor role. Returns or creates vendor wallet.
+    Example request:
+        GET /api/v1/vendor/wallet
+    Example response:
+        {"status": "success", "balance": 0.0}
+
+GET /vendor/wallet/history
+    - Auth + vendor role. Returns last 50 vendor wallet transactions.
+    Example request:
+        GET /api/v1/vendor/wallet/history
+    Example response:
+        {"status": "success", "transactions": [...]} 
+
+POST /vendor/wallet/credit
+    - Auth + vendor role. Body: amount, reference(optional). Credits vendor wallet.
+    Example request:
+        POST /api/v1/vendor/wallet/credit
+        {"amount": 50}
+    Example response:
+        {"status": "success", "balance": 50.0}
+
+POST /vendor/wallet/debit
+    - Auth + vendor role. Body: amount, reference(optional). Debits vendor wallet.
+    Example request:
+        POST /api/v1/vendor/wallet/debit
+        {"amount": 10}
+    Example response:
+        {"status": "success", "balance": 40.0}
+
+POST /vendor/wallet/withdraw
+    - Auth + vendor role. Body: amount. Withdraws to configured payout bank if set.
+    Example request:
+        POST /api/v1/vendor/wallet/withdraw
+        {"amount": 20}
+    Example response:
+        {"status": "success", "message": "Withdrawal initiated", "balance": 20.0}
+
+Order (Consumer)
+----------------
+POST /order/confirm
+    - Auth + consumer role. Body: payment_mode (cash or wallet), delivery_notes.
+    - Creates order from cart, debits wallet if payment_mode=wallet. Returns order_id.
+    Example request:
+        POST /api/v1/order/confirm
+        {"payment_mode": "wallet"}
+    Example response:
+        {"status": "success", "order_id": 1}
+
+GET /order/history
+    - Auth + consumer role. Returns order history with items and totals.
+    Example request:
+        GET /api/v1/order/history
+    Example response:
+        {"status": "success", "orders": [...]} 
+
+POST /order/consumer/confirm-modified/<order_id>
+    - Auth + consumer role. Confirms vendor modifications to order and refunds difference if any.
+    Example request:
+        POST /api/v1/order/consumer/confirm-modified/1
+    Example response:
+        {"status": "success", "refund": 5.0}
+
+POST /order/consumer/cancel/<order_id>
+    - Auth + consumer role. Cancels order and refunds if prepaid.
+    Example request:
+        POST /api/v1/order/consumer/cancel/1
+    Example response:
+        {"status": "success", "message": "Order cancelled", "refund": 10.0}
+
+POST /order/consumer/message/send/<order_id>
+    - Auth + consumer role. Body: message. Sends message on order.
+    Example request:
+        POST /api/v1/order/consumer/message/send/1
+        {"message": "When will it arrive?"}
+    Example response:
+        {"status": "success", "message": "Message sent"}
+
+GET /order/consumer/messages/<order_id>
+    - Auth + consumer role. Retrieves message history for order.
+    Example request:
+        GET /api/v1/order/consumer/messages/1
+    Example response:
+        {"status": "success", "messages": [...]} 
+
+POST /order/rate/<order_id>
+    - Auth + consumer role. Body: rating (1-5), review(optional). Rates delivered order.
+    Example request:
+        POST /api/v1/order/rate/1
+        {"rating": 5, "review": "Great"}
+    Example response:
+        {"status": "success", "message": "Thank you for rating!"}
+
+POST /order/issue/<order_id>
+    - Auth + consumer role. Body: issue_type, description. Raises issue for delivered order.
+    Example request:
+        POST /api/v1/order/issue/1
+        {"issue_type": "missing_item", "description": "Item X not delivered"}
+    Example response:
+        {"status": "success", "message": "Issue raised"}
+
+POST /order/return/raise/<order_id>
+    - Auth + consumer role. Body: reason, items[{item_id, quantity}]. Requests return of items from delivered order.
+    Example request:
+        POST /api/v1/order/return/raise/1
+        {"reason": "damaged", "items": [{"item_id": 1, "quantity": 1}]}
+    Example response:
+        {"status": "success", "message": "Return request sent"}
+
+Order (Vendor)
+--------------
+GET /order/vendor
+    - Auth + vendor role. Lists orders for vendor's shop.
+    Example request:
+        GET /api/v1/order/vendor
+    Example response:
+        {"status": "success", "orders": [...]} 
+
+POST /order/vendor/status/<order_id>
+    - Auth + vendor role with deliver_order permission. Body: {"status": "accepted"|"rejected"|"delivered"}. Updates order status and credits wallet on delivery if prepaid.
+    Example request:
+        POST /api/v1/order/vendor/status/1
+        {"status": "delivered"}
+    Example response:
+        {"status": "success", "message": "Order marked as delivered"}
+
+POST /order/vendor/modify/<order_id>
+    - Auth + vendor role with modify_order permission. Body: {"modifications": [{"item_id":id, "quantity":qty} ...]} Adjusts order items and sets awaiting_consumer_confirmation.
+    Example request:
+        POST /api/v1/order/vendor/modify/1
+        {"modifications": [{"item_id": 2, "quantity": 1}]}
+    Example response:
+        {"status": "success", "message": "Order modified"}
+
+POST /order/vendor/cancel/<order_id>
+    - Auth + vendor role with cancel_order_vendor permission. Cancels order and refunds consumer if prepaid.
+    Example request:
+        POST /api/v1/order/vendor/cancel/1
+    Example response:
+        {"status": "success", "message": "Order cancelled"}
+
+POST /order/vendor/message/send/<order_id>
+    - Auth + vendor role. Body: message. Sends message to consumer.
+    Example request:
+        POST /api/v1/order/vendor/message/send/1
+        {"message": "Out for delivery"}
+    Example response:
+        {"status": "success", "message": "Message sent"}
+
+GET /order/vendor/messages/<order_id>
+    - Auth + vendor role. Returns all messages for order.
+    Example request:
+        GET /api/v1/order/vendor/messages/1
+    Example response:
+        {"status": "success", "messages": [...]} 
+
+GET /order/vendor/issues
+    - Auth + vendor role. Lists issues for a specific order if provided via query param order_id (optional in code).
+    Example request:
+        GET /api/v1/order/vendor/issues?order_id=1
+    Example response:
+        {"status": "success", "issues": [...]} 
+
+POST /return/vendor/accept/<order_id>
+    - Auth + vendor role. Accepts pending return requests for order.
+    Example request:
+        POST /api/v1/return/vendor/accept/1
+    Example response:
+        {"status": "success", "message": "Return request accepted"}
+
+POST /return/complete/<order_id>
+    - Auth + vendor role. Marks accepted return as completed and issues refunds.
+    Example request:
+        POST /api/v1/return/complete/1
+    Example response:
+        {"status": "success", "message": "Return marked as completed"}
+
+POST /return/vendor/initiate/<order_id>
+    - Auth + vendor role. Initiates and accepts return for specified items in delivered order.
+    Example request:
+        POST /api/v1/return/vendor/initiate/1
+        {"items": [{"item_id": 1, "quantity": 1}], "reason": "expired"}
+    Example response:
+        {"status": "success", "message": "Return initiated and accepted"}
+
+Admin
+-----
+GET /admin/users
+    - Auth + admin role. Returns list of recent users.
+    Example request:
+        GET /api/v1/admin/users
+    Example response:
+        {"status": "success", "users": [...]} 
+
+GET /admin/shops
+    - Auth + admin role. Returns list of recent shops.
+    Example request:
+        GET /api/v1/admin/shops
+    Example response:
+        {"status": "success", "shops": [...]} 
+
+GET /admin/orders
+    - Auth + admin role. Returns list of recent orders.
+    Example request:
+        GET /api/v1/admin/orders
+    Example response:
+        {"status": "success", "orders": [...]} 
+
+Agent (optional)
+----------------
+POST /agent/query
+    - Requires OPENAI_API_KEY configured and user authenticated.
+    - Body: {"query": str}
+    - Returns assistant answer and suggestions or error if failure.
+    Example request:
+        POST /api/v1/agent/query
+        {"query": "How many orders today?"}
+    Example response:
+        {"status": "success", "answer": "..."}
+
+Additional
+----------
+/health (GET) - Health check returning {"status":"ok"} without authentication.
+/docs/ (GET) - Swagger UI.
+/apispec.json (GET) - OpenAPI spec.
+/metrics (GET) - Prometheus metrics.
