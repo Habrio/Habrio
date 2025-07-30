@@ -1,0 +1,10 @@
+{
+  "name": "Habrio Local",
+  "values": [
+    {"key": "base_url", "value": "http://localhost:81", "enabled": true},
+    {"key": "access_token", "value": "", "enabled": true},
+    {"key": "refresh_token", "value": "", "enabled": true}
+  ],
+  "_postman_variable_scope": "environment",
+  "_postman_exported_using": "postman"
+}
