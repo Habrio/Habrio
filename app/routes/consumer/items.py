@@ -1,12 +1,10 @@
 from flask import request, jsonify
-from app.utils import auth_required, role_required, error
+from app.utils import error
 from models.item import Item
 from models.shop import Shop
 from . import consumer_bp
 
 @consumer_bp.route('/shop/<int:shop_id>/items', methods=['GET'])
-@auth_required
-@role_required(['consumer'])
 def view_items_by_shop(shop_id):
     shop = Shop.query.get(shop_id)
     if not shop:

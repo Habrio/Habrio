@@ -1,13 +1,11 @@
 from flask import request, jsonify
 from models import db
 from models.shop import Shop
-from app.utils import auth_required, role_required, error
+from app.utils import error
 from . import consumer_bp
 
 
 @consumer_bp.route("/shops", methods=["GET"])
-@auth_required
-@role_required(["consumer"])
 def list_shops():
     user = request.user
     city, society = user.city, user.society
@@ -42,8 +40,6 @@ def list_shops():
 
 
 @consumer_bp.route("/shops/search", methods=["GET"])
-@auth_required
-@role_required(["consumer"])
 def search_shops():
     user = request.user
     city = user.city

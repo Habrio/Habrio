@@ -6,13 +6,11 @@ from app.services.consumer.wallet import (
     adjust_consumer_balance,
     InsufficientFunds,
 )
-from app.utils import auth_required, role_required, transactional, error, internal_error_response
+from app.utils import transactional, error, internal_error_response
 from . import consumer_bp
 
 
 @consumer_bp.route("/wallet", methods=["GET"])
-@auth_required
-@role_required(["consumer"])
 def get_or_create_wallet():
     user = request.user
     wallet = ConsumerWallet.query.filter_by(user_phone=user.phone).first()
@@ -27,8 +25,6 @@ def get_or_create_wallet():
 
 
 @consumer_bp.route("/wallet/history", methods=["GET"])
-@auth_required
-@role_required(["consumer"])
 def wallet_transaction_history():
     txns = (
         WalletTransaction.query.filter_by(user_phone=request.phone)
@@ -41,8 +37,6 @@ def wallet_transaction_history():
 
 
 @consumer_bp.route("/wallet/load", methods=["POST"])
-@auth_required
-@role_required(["consumer"])
 def load_wallet():
     user = request.user
     data = request.get_json()
@@ -67,8 +61,6 @@ def load_wallet():
 
 
 @consumer_bp.route("/wallet/debit", methods=["POST"])
-@auth_required
-@role_required(["consumer"])
 def debit_wallet():
     user = request.user
     data = request.get_json()
@@ -92,8 +84,6 @@ def debit_wallet():
 
 
 @consumer_bp.route("/wallet/refund", methods=["POST"])
-@auth_required
-@role_required(["consumer"])
 def refund_wallet():
     user = request.user
     data = request.get_json()

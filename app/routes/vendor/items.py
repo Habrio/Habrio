@@ -5,14 +5,12 @@ from werkzeug.utils import secure_filename
 from models.item import Item
 from models.shop import Shop
 from models import db
-from app.utils import auth_required, role_required, transactional, error, internal_error_response
+from app.utils import transactional, error, internal_error_response
 from app.utils.validation import validate_schema
 from app.schemas.vendor import AddItemRequest
 from . import vendor_bp
 
 @vendor_bp.route('/item/add', methods=['POST'])
-@auth_required
-@role_required(['vendor'])
 @validate_schema(AddItemRequest)
 def add_item():
     user = request.user
@@ -47,8 +45,6 @@ def add_item():
     return jsonify({"status": "success", "message": "Item added"}), 200
 
 @vendor_bp.route('/item/<int:item_id>/toggle', methods=['POST'])
-@auth_required
-@role_required(['vendor'])
 def toggle_item_availability(item_id):
     user = request.user
     item = Item.query.get(item_id)
@@ -64,8 +60,6 @@ def toggle_item_availability(item_id):
     return jsonify({"status": "success", "message": "Item availability updated"}), 200
 
 @vendor_bp.route('/item/update/<int:item_id>', methods=['POST'])
-@auth_required
-@role_required(['vendor'])
 def update_item(item_id):
     user = request.user
     data = request.get_json()
@@ -96,8 +90,6 @@ def update_item(item_id):
     return jsonify({"status": "success", "message": "Item updated"}), 200
 
 @vendor_bp.route('/item/my', methods=['GET'])
-@auth_required
-@role_required(['vendor'])
 def get_items():
     user = request.user
     shop = Shop.query.filter_by(phone=user.phone).first()
@@ -128,8 +120,6 @@ def get_items():
     return jsonify({"status": "success", "data": result}), 200
 
 @vendor_bp.route('/item/bulk-upload', methods=['POST'])
-@auth_required
-@role_required(['vendor'])
 def bulk_upload_items():
     user = request.user
     file = request.files.get("file")
