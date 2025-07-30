@@ -22,7 +22,7 @@ def setup_vendor_with_items(client, app, phone):
     token = obtain_token(client, phone, role="vendor")
     client.post(f"{API_PREFIX}/onboarding/basic", json={'name': 'V', 'city': 'Town', 'society': 'Soc', 'role': 'vendor'}, headers={'Authorization': f'Bearer {token}'})
     client.post(f"{API_PREFIX}/vendor/profile", json={'business_type': 'retail', 'business_name': 'Shop', 'address': 'Addr'}, headers={'Authorization': f'Bearer {token}'})
-    client.post(f"{API_PREFIX}/vendor/create-shop", json={'shop_name': 'MyShop', 'shop_type': 'grocery'}, headers={'Authorization': f'Bearer {token}'})
+    client.post(f"{API_PREFIX}/vendor/shop", json={'shop_name': 'MyShop', 'shop_type': 'grocery'}, headers={'Authorization': f'Bearer {token}'})
     client.post(f"{API_PREFIX}/item/add", json={'title': 'Item1', 'price': 20}, headers={'Authorization': f'Bearer {token}'})
     client.post(f"{API_PREFIX}/item/add", json={'title': 'Item2', 'price': 10}, headers={'Authorization': f'Bearer {token}'})
     with app.app_context():
@@ -73,7 +73,7 @@ def test_confirm_modified_order_with_refund(client, app):
 
     # vendor modifies order - remove second item
     mod = {'modifications': [{'item_id': item_to_remove, 'quantity': 0}]}
-    resp = client.post(f'/api/v1/order/vendor/modify/{order_id}', json=mod, headers={'Authorization': f'Bearer {vendor_token}'})
+    resp = client.post(f'/api/v1/vendor/orders/{order_id}/modify', json=mod, headers={'Authorization': f'Bearer {vendor_token}'})
     assert resp.status_code == 200
     with app.app_context():
         order = Order.query.get(order_id)
@@ -139,7 +139,7 @@ def test_vendor_modify_order_items(client, app):
     item1, item2 = ctx['item_ids']
 
     mod_payload = {'modifications': [{'item_id': item1, 'quantity': 2}, {'item_id': item2, 'quantity': 0}]}
-    resp = client.post(f'/api/v1/order/vendor/modify/{order_id}', json=mod_payload, headers={'Authorization': f'Bearer {vendor_token}'})
+    resp = client.post(f'/api/v1/vendor/orders/{order_id}/modify', json=mod_payload, headers={'Authorization': f'Bearer {vendor_token}'})
     assert resp.status_code == 200
     with app.app_context():
         order = Order.query.get(order_id)
@@ -152,12 +152,12 @@ def test_vendor_modify_order_items(client, app):
 
     # unauthorized vendor
     other_vendor_token, _ = setup_vendor_with_items(client, app, '9000000002')
-    resp_unauth = client.post(f'/api/v1/order/vendor/modify/{order_id}', json=mod_payload, headers={'Authorization': f'Bearer {other_vendor_token}'})
+    resp_unauth = client.post(f'/api/v1/vendor/orders/{order_id}/modify', json=mod_payload, headers={'Authorization': f'Bearer {other_vendor_token}'})
     assert resp_unauth.status_code == 403
 
     # modify after cancelling should fail
-    client.post(f'/api/v1/order/vendor/cancel/{order_id}', headers={'Authorization': f'Bearer {vendor_token}'})
-    resp_closed = client.post(f'/api/v1/order/vendor/modify/{order_id}', json=mod_payload, headers={'Authorization': f'Bearer {vendor_token}'})
+    client.post(f'/api/v1/vendor/orders/{order_id}/cancel', headers={'Authorization': f'Bearer {vendor_token}'})
+    resp_closed = client.post(f'/api/v1/vendor/orders/{order_id}/modify', json=mod_payload, headers={'Authorization': f'Bearer {vendor_token}'})
     assert resp_closed.status_code == 400
 
 
@@ -169,7 +169,7 @@ def test_cancel_order_vendor_refund(client, app):
     vendor_token = ctx['vendor_token']
     consumer_phone = ctx['consumer_phone']
 
-    resp = client.post(f'/api/v1/order/vendor/cancel/{order_id}', headers={'Authorization': f'Bearer {vendor_token}'})
+    resp = client.post(f'/api/v1/vendor/orders/{order_id}/cancel', headers={'Authorization': f'Bearer {vendor_token}'})
     assert resp.status_code == 200
     with app.app_context():
         order = Order.query.get(order_id)
@@ -178,11 +178,11 @@ def test_cancel_order_vendor_refund(client, app):
         assert float(wallet.balance) == 50.0
         assert OrderMessage.query.filter_by(order_id=order_id).first() is not None
 
-    resp_again = client.post(f'/api/v1/order/vendor/cancel/{order_id}', headers={'Authorization': f'Bearer {vendor_token}'})
+    resp_again = client.post(f'/api/v1/vendor/orders/{order_id}/cancel', headers={'Authorization': f'Bearer {vendor_token}'})
     assert resp_again.status_code == 400
 
     other_vendor_token, _ = setup_vendor_with_items(client, app, '9000000003')
-    resp_unauth = client.post(f'/api/v1/order/vendor/cancel/{order_id}', headers={'Authorization': f'Bearer {other_vendor_token}'})
+    resp_unauth = client.post(f'/api/v1/vendor/orders/{order_id}/cancel', headers={'Authorization': f'Bearer {other_vendor_token}'})
     assert resp_unauth.status_code == 403
 
 
@@ -194,9 +194,9 @@ def test_vendor_update_status_and_payout(client, app):
     vendor_token = ctx['vendor_token']
     vendor_phone = ctx['vendor_phone']
 
-    resp = client.post(f'/api/v1/order/vendor/status/{order_id}', json={'status': 'accepted'}, headers={'Authorization': f'Bearer {vendor_token}'})
+    resp = client.post(f'/api/v1/vendor/orders/{order_id}/status', json={'status': 'accepted'}, headers={'Authorization': f'Bearer {vendor_token}'})
     assert resp.status_code == 200
-    resp = client.post(f'/api/v1/order/vendor/status/{order_id}', json={'status': 'delivered'}, headers={'Authorization': f'Bearer {vendor_token}'})
+    resp = client.post(f'/api/v1/vendor/orders/{order_id}/status', json={'status': 'delivered'}, headers={'Authorization': f'Bearer {vendor_token}'})
     assert resp.status_code == 200
     with app.app_context():
         order = Order.query.get(order_id)
@@ -206,11 +206,11 @@ def test_vendor_update_status_and_payout(client, app):
         assert VendorWalletTransaction.query.filter_by(user_phone=vendor_phone, reference=f'Order #{order_id} delivered').count() == 1
 
     # invalid status
-    resp_bad = client.post(f'/api/v1/order/vendor/status/{order_id}', json={'status': 'unknown'}, headers={'Authorization': f'Bearer {vendor_token}'})
+    resp_bad = client.post(f'/api/v1/vendor/orders/{order_id}/status', json={'status': 'unknown'}, headers={'Authorization': f'Bearer {vendor_token}'})
     assert resp_bad.status_code == 400
 
     other_vendor_token, _ = setup_vendor_with_items(client, app, '9000000004')
-    resp_unauth = client.post(f'/api/v1/order/vendor/status/{order_id}', json={'status': 'accepted'}, headers={'Authorization': f'Bearer {other_vendor_token}'})
+    resp_unauth = client.post(f'/api/v1/vendor/orders/{order_id}/status', json={'status': 'accepted'}, headers={'Authorization': f'Bearer {other_vendor_token}'})
     assert resp_unauth.status_code == 403
 
 
@@ -228,7 +228,7 @@ def test_consumer_vendor_message_flow(client, app):
     resp = client.post(f'/api/v1/consumer/order/message/send/{order_id}', json={'message': 'Hello'}, headers={'Authorization': consumer_token})
     assert resp.status_code == 200
 
-    resp2 = client.get(f'/api/v1/order/vendor/messages/{order_id}', headers={'Authorization': f'Bearer {vendor_token}'})
+    resp2 = client.get(f'/api/v1/vendor/orders/{order_id}/messages', headers={'Authorization': f'Bearer {vendor_token}'})
     assert resp2.status_code == 200
     msgs = resp2.get_json()['messages']
     assert any(m['message'] == 'Hello' for m in msgs)
@@ -242,7 +242,7 @@ def test_rate_order_success_and_errors(client, app):
     consumer_token = ctx['consumer_token']
     vendor_token = ctx['vendor_token']
 
-    client.post(f'/api/v1/order/vendor/status/{order_id}', json={'status': 'delivered'}, headers={'Authorization': f'Bearer {vendor_token}'})
+    client.post(f'/api/v1/vendor/orders/{order_id}/status', json={'status': 'delivered'}, headers={'Authorization': f'Bearer {vendor_token}'})
     resp = client.post(f'/api/v1/consumer/order/rate/{order_id}', json={'rating': 5, 'review': 'Good'}, headers={'Authorization': consumer_token})
     assert resp.status_code == 200
     with app.app_context():

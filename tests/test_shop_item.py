@@ -37,7 +37,7 @@ def setup_vendor_with_profile(client, app, phone):
 
 def create_shop_for_vendor(client, token, name='MyShop'):
     payload = {'shop_name': name, 'shop_type': 'grocery'}
-    return client.post(f"{API_PREFIX}/vendor/create-shop", json=payload, headers={'Authorization': f'Bearer {token}'})
+    return client.post(f"{API_PREFIX}/vendor/shop", json=payload, headers={'Authorization': f'Bearer {token}'})
 
 
 def add_item_for_vendor(client, token, title='Item', price=1.0):
@@ -76,7 +76,7 @@ def test_edit_shop_success_and_not_found(client, app):
     token = setup_vendor_with_profile(client, app, phone)
     create_shop_for_vendor(client, token, 'EditShop')
 
-    resp = client.post('/api/v1/shop/edit', json={'description': 'New', 'is_open': False}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/vendor/shop/edit', json={'description': 'New', 'is_open': False}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     with app.app_context():
         shop = Shop.query.filter_by(phone=phone).first()
@@ -85,7 +85,7 @@ def test_edit_shop_success_and_not_found(client, app):
 
     phone2 = '8100000004'
     token2 = setup_vendor_with_profile(client, app, phone2)
-    resp_nf = client.post('/api/v1/shop/edit', json={'description': 'X'}, headers={'Authorization': f'Bearer {token2}'})
+    resp_nf = client.post('/api/v1/vendor/shop/edit', json={'description': 'X'}, headers={'Authorization': f'Bearer {token2}'})
     assert resp_nf.status_code == 404
     assert resp_nf.get_json()['message'] == 'Shop not found'
 
@@ -95,17 +95,17 @@ def test_toggle_shop_status(client, app):
     token = setup_vendor_with_profile(client, app, phone)
     create_shop_for_vendor(client, token, 'ToggleShop')
 
-    resp_close = client.post('/api/v1/vendor/shop/toggle_status', json={'is_open': False}, headers={'Authorization': f'Bearer {token}'})
+    resp_close = client.post('/api/v1/vendor/shop/toggle-status', json={'is_open': False}, headers={'Authorization': f'Bearer {token}'})
     assert resp_close.status_code == 200
     with app.app_context():
         assert Shop.query.filter_by(phone=phone).first().is_open is False
 
-    resp_open = client.post('/api/v1/vendor/shop/toggle_status', json={'is_open': True}, headers={'Authorization': f'Bearer {token}'})
+    resp_open = client.post('/api/v1/vendor/shop/toggle-status', json={'is_open': True}, headers={'Authorization': f'Bearer {token}'})
     assert resp_open.status_code == 200
     with app.app_context():
         assert Shop.query.filter_by(phone=phone).first().is_open is True
 
-    resp_invalid = client.post('/api/v1/vendor/shop/toggle_status', json={'is_open': 'yes'}, headers={'Authorization': f'Bearer {token}'})
+    resp_invalid = client.post('/api/v1/vendor/shop/toggle-status', json={'is_open': 'yes'}, headers={'Authorization': f'Bearer {token}'})
     assert resp_invalid.status_code == 400
     assert resp_invalid.get_json()['message'] == 'Invalid is_open value'
 
