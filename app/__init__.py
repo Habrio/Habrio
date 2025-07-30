@@ -52,19 +52,30 @@ def create_app(config_object=None):
     app.limiter = limiter
 
     migrate = Migrate(app, db, compare_type=True, render_as_batch=True)
-    swagger = Swagger(app, config={
-        "headers": [],
-        "specs": [
-            {
-                "endpoint": 'apispec',
-                "route": '/apispec.json',
-                "rule_filter": lambda rule: rule.rule.startswith(f"{API_PREFIX}/"),
-                "model_filter": lambda tag: True,
-            }
-        ],
-        "swagger_ui": True,
-        "specs_route": "/docs/",
-    })
+    swagger = Swagger(
+        app,
+        config={
+            "headers": [],
+            "specs": [
+                {
+                    "endpoint": "apispec",
+                    "route": "/apispec.json",
+                    "rule_filter": lambda rule: rule.rule.startswith(
+                        f"{API_PREFIX}/"
+                    ),
+                    "model_filter": lambda tag: True,
+                }
+            ],
+            "swagger_ui": True,
+            "specs_route": "/docs/",
+        },
+        template={
+            "tags": [
+                {"name": "Consumer", "description": "Consumer-facing endpoints"},
+                {"name": "Vendor", "description": "Vendor-facing endpoints"},
+            ]
+        },
+    )
     metrics = PrometheusMetrics(app, path='/metrics')
     if not app.config.get("TESTING") and not os.environ.get("METRICS_APP_INFO_SET"):
         metrics.info("app_info", "Application info", version="1.0.0")
