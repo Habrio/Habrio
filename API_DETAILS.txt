@@ -3,6 +3,9 @@ API Routes Summary
 
 Base path for versioned APIs: /api/v1
 
+Routes are grouped under `consumer`, `vendor` and `admin` packages inside
+`app/routes` with separate modules for each feature area.
+
 Authentication
 --------------
 POST /logout

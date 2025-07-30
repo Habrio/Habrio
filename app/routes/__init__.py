@@ -4,8 +4,6 @@ from .vendor import vendor_bp
 from .shop import shop_bp
 from .item import item_bp
 from .consumer import consumer_bp
-from .wallet import wallet_bp
-from .order import order_bp
 from .admin import admin_bp
 try:
     from .agent import agent_bp
@@ -20,8 +18,6 @@ __all__ = [
     'shop_bp',
     'item_bp',
     'consumer_bp',
-    'wallet_bp',
-    'order_bp',
     'admin_bp',
     'agent_bp',
 ]
