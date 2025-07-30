@@ -5,7 +5,7 @@ from app.logging import configure_logging
 from app.errors import errors_bp
 from app.cli import register_cli
 from app.api import register_api_v1
-from app.routes import auth as auth_routes
+from app.routes.onboarding import auth as auth_routes
 from app.version import API_PREFIX
 from flask_cors import CORS
 from flasgger import Swagger
