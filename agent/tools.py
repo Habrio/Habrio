@@ -6,7 +6,7 @@ from models.cart import CartItem
 
 def get_available_items():
     items = Item.query.filter_by(is_available=True).limit(10).all()
-    return ", ".join([f"{item.name} (₹{item.price})" for item in items]) or "No available items found."
+    return ", ".join([f"{item.title} (₹{item.price})" for item in items]) or "No available items found."
 
 def get_cart_summary():
     phone = getattr(request, "phone", None)

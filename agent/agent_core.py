@@ -1,5 +1,5 @@
 # === /agent/agent_core.py ===
-from langchain.chat_models import ChatOpenAI
+from langchain_community.chat_models import ChatOpenAI
 from langchain.agents import initialize_agent, Tool
 from langchain.agents.agent_types import AgentType
 from agent.tools import get_available_items, get_cart_summary
