@@ -8,6 +8,7 @@ from app.utils import internal_error_response
 from app.utils import error
 from app.services import vendor_service
 from app.services.vendor_service import ValidationError
+from app.utils import has_required_fields
 
 vendor_bp = Blueprint("vendor", __name__, url_prefix=f"{API_PREFIX}/vendor")
 
@@ -18,6 +19,9 @@ vendor_bp = Blueprint("vendor", __name__, url_prefix=f"{API_PREFIX}/vendor")
 def vendor_profile_setup():
     user = request.user
     data = request.get_json()
+    required = ["business_type", "business_name", "address"]
+    if not has_required_fields(data, required):
+        return error("Missing required vendor details", status=400)
     try:
         vendor_service.create_vendor_profile(user, data)
         db.session.commit()
