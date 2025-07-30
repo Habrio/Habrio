@@ -10,7 +10,7 @@ import logging
 shop_bp = Blueprint("shop", __name__, url_prefix=API_PREFIX)
 
 from app.utils import internal_error_response
-from app.utils import error
+from app.utils import error, transactional
 from app.services import shop_service
 from app.services.shop_service import ValidationError
 
@@ -22,14 +22,12 @@ def create_shop():
     user = request.user
     data = request.get_json()
     try:
-        shop_service.create_shop_for_vendor(user, data)
-        db.session.commit()
+        with transactional("Failed to create shop"):
+            shop_service.create_shop_for_vendor(user, data)
         return jsonify({"status": "success", "message": "Shop created"}), 200
     except ValidationError as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to create shop: %s", e, exc_info=True)
         return internal_error_response()
 
@@ -58,9 +56,9 @@ def edit_shop():
     shop.verified = data.get("verified", shop.verified)
 
     try:
-        db.session.commit()
+        with transactional("Failed to edit shop"):
+            pass
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to edit shop: %s", e, exc_info=True)
         return internal_error_response()
     return jsonify({"status": "success", "message": "Shop updated"}), 200
@@ -157,9 +155,9 @@ def update_shop_hours():
         db.session.add(new_hour)
 
     try:
-        db.session.commit()
+        with transactional("Failed to update shop hours"):
+            pass
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to update shop hours: %s", e, exc_info=True)
         return internal_error_response()
     return jsonify({"status": "success", "message": "Shop hours updated"}), 200
@@ -194,9 +192,9 @@ def toggle_shop_status():
     log = ShopActionLog(shop_id=shop.id, action=action, timestamp=timestamp)
     db.session.add(log)
     try:
-        db.session.commit()
+        with transactional("Failed to toggle shop status"):
+            pass
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to toggle shop status: %s", e, exc_info=True)
         return internal_error_response()
 

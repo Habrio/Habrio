@@ -1,6 +1,7 @@
 from .responses import ok, error, error_response, internal_error_response
 from .auth import auth_required, role_required
 from .validation import has_required_fields
+from .db import transactional
 from .jwt import (
     create_access_token,
     create_refresh_token,
@@ -20,4 +21,5 @@ __all__ = [
     'decode_token',
     'TokenError',
     'has_required_fields',
+    'transactional',
 ]

@@ -6,7 +6,7 @@ from models.item import Item
 from models.shop import Shop
 from models import db
 from app.utils import auth_required
-from app.utils import role_required
+from app.utils import role_required, transactional
 from datetime import datetime
 import pandas as pd
 from werkzeug.utils import secure_filename
@@ -52,12 +52,10 @@ def add_item():
         image_url=data.get("image_url")
     )
 
-    db.session.add(item)
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to add item: %s", e, exc_info=True)
+        with transactional("Failed to add item"):
+            db.session.add(item)
+    except Exception:
         return internal_error_response()
 
     return jsonify({"status": "success", "message": "Item added"}), 200
@@ -75,10 +73,9 @@ def toggle_item_availability(item_id):
 
     item.is_available = not item.is_available
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to toggle item availability: %s", e, exc_info=True)
+        with transactional("Failed to toggle item availability"):
+            pass
+    except Exception:
         return internal_error_response()
 
     return jsonify({"status": "success", "message": "Item availability updated"}), 200
@@ -112,10 +109,9 @@ def update_item(item_id):
     item.updated_at = datetime.utcnow()
 
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to update item: %s", e, exc_info=True)
+        with transactional("Failed to update item"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Item updated"}), 200
 
@@ -211,10 +207,9 @@ def bulk_upload_items():
             continue
 
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to bulk upload items: %s", e, exc_info=True)
+        with transactional("Failed to bulk upload items"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": f"{created} items uploaded"}), 200
 

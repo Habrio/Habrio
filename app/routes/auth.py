@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from twilio.rest import Client
 import logging
 from app.utils import internal_error_response
-from app.utils import error
+from app.utils import error, transactional
 from app.utils import (
     create_access_token,
     create_refresh_token,
@@ -118,11 +118,10 @@ def send_otp_handler():
         created_at=datetime.utcnow()
     )
 
-    db.session.add(new_otp)
     try:
-        db.session.commit()
+        with transactional("Failed to create OTP"):
+            db.session.add(new_otp)
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to create OTP: %s", e, exc_info=True)
         return internal_error_response()
 
@@ -174,12 +173,11 @@ def verify_otp_handler():
     refresh_token = create_refresh_token(phone)
     otp_record.token = "issued"
 
-    db.session.add(otp_record)
-    db.session.add(user)
     try:
-        db.session.commit()
+        with transactional("Failed to verify OTP"):
+            db.session.add(otp_record)
+            db.session.add(user)
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to verify OTP: %s", e, exc_info=True)
         return internal_error_response()
 

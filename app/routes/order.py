@@ -18,7 +18,7 @@ from decimal import Decimal
 from app.utils import auth_required
 from app.utils import role_required
 from app.utils import internal_error_response
-from app.utils import error
+from app.utils import error, transactional
 from app.services.order_service import (
     confirm_order as confirm_order_service,
     confirm_modified_order as confirm_modified_order_service,
@@ -46,19 +46,15 @@ def confirm_order():
     payment_mode = data.get("payment_mode", "cash")
     delivery_notes = data.get("delivery_notes", "")
     try:
-        new_order = confirm_order_service(user, payment_mode, delivery_notes)
-        db.session.commit()
+        with transactional("Order confirmation failed"):
+            new_order = confirm_order_service(user, payment_mode, delivery_notes)
         return jsonify({"status": "success", "message": "Order placed successfully", "order_id": new_order.id}), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except ValidationError as e:
-        db.session.rollback()
         status = 403 if "Unauthorized" in str(e) else 400
         return error(str(e), status=status)
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Order confirmation failed: %s", e, exc_info=True)
+    except Exception:
         return internal_error_response()
 
 
@@ -94,18 +90,15 @@ def confirm_modified_order(order_id):
     user = request.user
     order = Order.query.get(order_id)
     try:
-        refund = confirm_modified_order_service(user, order)
-        db.session.commit()
+        with transactional("Failed to confirm modified order"):
+            refund = confirm_modified_order_service(user, order)
         return jsonify({"status": "success", "message": "Modified order confirmed", "refund": float(refund)}), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except ValidationError as e:
-        db.session.rollback()
         status = 403 if "Unauthorized" in str(e) else 400
         return error(str(e), status=status)
-    except Exception as e:
-        db.session.rollback()
+    except Exception:
         return internal_error_response()
 
 
@@ -116,18 +109,15 @@ def cancel_order_consumer(order_id):
     user = request.user
     order = Order.query.get(order_id)
     try:
-        refund = cancel_order_by_consumer(user, order)
-        db.session.commit()
+        with transactional("Failed to cancel order"):
+            refund = cancel_order_by_consumer(user, order)
         return jsonify({"status": "success", "message": "Order cancelled", "refund": float(refund)}), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except ValidationError as e:
-        db.session.rollback()
         status = 403 if "Unauthorized" in str(e) else 400
         return error(str(e), status=status)
     except Exception:
-        db.session.rollback()
         return internal_error_response()
 
 
@@ -146,9 +136,9 @@ def send_order_message_consumer(order_id):
     db.session.add(OrderMessage(order_id=order_id, sender_phone=user.phone, message=message))
     db.session.add(OrderActionLog(order_id=order_id, action_type="message_sent", actor_phone=user.phone, details=message))
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
+        with transactional("Failed to send order message"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Message sent"}), 200
 
@@ -188,9 +178,9 @@ def rate_order(order_id):
     db.session.add(rating_entry)
     db.session.add(OrderActionLog(order_id=order.id, action_type="order_rated", actor_phone=user.phone, details=f"Rated {rating}/5. {review}" if review else f"Rated {rating}/5"))
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
+        with transactional("Failed to rate order"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Thank you for rating!", "rating": rating_entry.to_dict()}), 200
 
@@ -213,9 +203,9 @@ def raise_order_issue(order_id):
     db.session.add(OrderActionLog(order_id=order.id, action_type="issue_raised", actor_phone=user.phone, details=f"Issue: {issue_type} | {description}"))
     db.session.add(OrderMessage(order_id=order.id, sender_phone=user.phone, message=f"Issue raised: {issue_type}\n{description}"))
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
+        with transactional("Failed to raise issue"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Issue raised"}), 200
 
@@ -237,9 +227,9 @@ def request_return(order_id):
         db.session.add(OrderReturn(order_id=order.id, item_id=item.get("item_id"), quantity=item.get("quantity", 1), reason=reason, initiated_by="consumer", status="requested"))
     db.session.add(OrderActionLog(order_id=order.id, actor_phone=user.phone, action_type="return_requested", details=f"{len(items)} item(s) requested for return. Reason: {reason}"))
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
+        with transactional("Failed to request return"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Return request sent"}), 200
 
@@ -288,18 +278,15 @@ def update_order_status(order_id):
     if not shop or shop.phone != user.phone:
         return error("Unauthorized", status=403)
     try:
-        update_status_by_vendor(user, order, new_status)
-        db.session.commit()
+        with transactional("Failed to update order status"):
+            update_status_by_vendor(user, order, new_status)
         return jsonify({"status": "success", "message": f"Order marked as {new_status}"}), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except ValidationError as e:
-        db.session.rollback()
         status = 403 if "Unauthorized" in str(e) else 400
         return error(str(e), status=status)
     except Exception:
-        db.session.rollback()
         return error("Failed to update order status", status=500)
 
 
@@ -339,9 +326,9 @@ def modify_order_item(order_id):
     db.session.add(OrderActionLog(order_id=order.id, action_type="vendor_modified", actor_phone=user.phone, details="; ".join(update_log)))
     db.session.add(OrderMessage(order_id=order.id, sender_phone=user.phone, message="Order modified. Awaiting your confirmation."))
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
+        with transactional("Failed to modify order"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Order modified", "new_total": float(updated_total)}), 200
 
@@ -358,17 +345,14 @@ def cancel_order_vendor(order_id):
     if not shop or shop.id != order.shop_id:
         return error("Unauthorized", status=403)
     try:
-        refund = cancel_order_by_vendor(user, order)
-        db.session.commit()
+        with transactional("Failed to cancel order"):
+            refund = cancel_order_by_vendor(user, order)
         return jsonify({"status": "success", "message": "Order cancelled", "refund": float(refund)}), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except ValidationError as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except Exception:
-        db.session.rollback()
         return error("Failed to cancel order", status=500)
 
 
@@ -388,9 +372,9 @@ def send_order_message_vendor(order_id):
     db.session.add(OrderMessage(order_id=order_id, sender_phone=user.phone, message=message))
     db.session.add(OrderActionLog(order_id=order_id, action_type="message_sent", actor_phone=user.phone, details=message))
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
+        with transactional("Failed to send order message"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Message sent"}), 200
 
@@ -444,9 +428,9 @@ def accept_return(order_id):
     db.session.add(OrderStatusLog(order_id=order.id, status="return_accepted", updated_by=user.phone))
     db.session.add(OrderActionLog(order_id=order.id, action_type="return_accepted", actor_phone=user.phone, details="Vendor accepted the return request"))
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
+        with transactional("Failed to accept return"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Return request accepted"}), 200
 
@@ -461,17 +445,14 @@ def complete_return(order_id):
     if not order or not shop or order.shop_id != shop.id:
         return error("Unauthorized", status=403)
     try:
-        service_complete_return(user, order)
-        db.session.commit()
+        with transactional("Failed to complete return"):
+            service_complete_return(user, order)
         return jsonify({"status": "success", "message": "Return marked as completed"}), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except ValidationError as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except Exception:
-        db.session.rollback()
         return error("Failed to complete return", status=500)
 
 
@@ -495,8 +476,8 @@ def vendor_initiate_return(order_id):
     db.session.add(OrderStatusLog(order_id=order.id, status="return_accepted", updated_by=user.phone))
     db.session.add(OrderActionLog(order_id=order.id, action_type="vendor_forced_return", actor_phone=user.phone, details=f"{len(items)} item(s) returned. Reason: {reason}"))
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
+        with transactional("Failed to initiate return"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Return initiated and accepted"}), 200

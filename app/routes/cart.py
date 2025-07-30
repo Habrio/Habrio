@@ -10,7 +10,7 @@ from app.utils import auth_required
 from app.utils import role_required
 import logging
 from app.utils import internal_error_response
-from app.utils import error
+from app.utils import error, transactional
 cart_bp = Blueprint("cart", __name__, url_prefix=f"{API_PREFIX}/cart")
 
 
@@ -52,10 +52,9 @@ def add_to_cart():
         db.session.add(cart_item)
 
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to add to cart: %s", e, exc_info=True)
+        with transactional("Failed to add to cart"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Item added to cart"}), 200
 
@@ -82,10 +81,9 @@ def update_cart_quantity():
 
     cart_item.quantity = quantity
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to update cart quantity: %s", e, exc_info=True)
+        with transactional("Failed to update cart quantity"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Cart quantity updated"}), 200
 
@@ -154,10 +152,9 @@ def remove_item():
     if cart_item:
         db.session.delete(cart_item)
         try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            logging.error("Failed to remove cart item: %s", e, exc_info=True)
+            with transactional("Failed to remove cart item"):
+                pass
+        except Exception:
             return internal_error_response()
         return jsonify({"status": "success", "message": "Item removed"}), 200
 
@@ -172,9 +169,8 @@ def clear_cart():
     phone = request.phone
     CartItem.query.filter_by(user_phone=phone).delete()
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to clear cart: %s", e, exc_info=True)
+        with transactional("Failed to clear cart"):
+            pass
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Cart cleared"}), 200
