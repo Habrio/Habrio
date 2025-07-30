@@ -38,6 +38,17 @@ Set `ALLOW_DB_MIGRATIONS=true` in production to permit upgrades or stamping.
 - Test-only routes remain unversioned and, in testing, also available under `/api/v1/test_support/...`.
 - Clients should update their base path to `/api/v1`.
 
+### Code Structure
+
+Routes are organized in subpackages under `app/routes`:
+
+- `consumer/` for consumer-facing endpoints
+- `vendor/` for vendor endpoints
+- `admin/` for admin actions
+
+Each subpackage defines its own blueprint and modules like `profile.py`,
+`orders.py`, or `wallet.py` that register routes on that blueprint.
+
 ### Auth
 
 * Access token (lifetime ≈ 15 min) – send via `Authorization: Bearer <token>`.
