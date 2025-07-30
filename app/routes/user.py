@@ -4,7 +4,7 @@ from models.user import ConsumerProfile
 from models import db
 from app.utils import auth_required
 from app.utils import role_required
-from app.utils import error
+from app.utils import error, has_required_fields
 import logging
 from app.utils import internal_error_response
 
@@ -17,7 +17,7 @@ def basic_onboarding():
     """Complete initial onboarding details for the authenticated user."""
     data = request.get_json()
     required_fields = ["name", "city", "society", "role"]
-    if not all(field in data for field in required_fields):
+    if not has_required_fields(data, required_fields):
         return error("Missing fields", status=400)
 
     user = request.user

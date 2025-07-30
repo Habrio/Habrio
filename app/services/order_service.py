@@ -11,6 +11,8 @@ from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balan
 class ValidationError(Exception):
     pass
 
+ALLOWED_VENDOR_STATUSES = ["accepted", "rejected", "delivered"]
+
 
 def confirm_order(user, payment_mode: str = "cash", delivery_notes: str = "") -> Order:
     cart_items: List[CartItem] = CartItem.query.filter_by(user_phone=user.phone).all()
@@ -146,7 +148,7 @@ def cancel_order_by_consumer(user, order: Order) -> Decimal:
 
 
 def update_status_by_vendor(user, order: Order, new_status: str):
-    if new_status not in ["accepted", "rejected", "delivered"]:
+    if new_status not in ALLOWED_VENDOR_STATUSES:
         raise ValidationError("Invalid status")
     if new_status == "delivered" and order.payment_mode == "wallet" and order.payment_status == "paid":
         amt = Decimal(order.final_amount or order.total_amount)

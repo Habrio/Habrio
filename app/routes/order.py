@@ -27,6 +27,7 @@ from app.services.order_service import (
     cancel_order_by_vendor,
     complete_return as service_complete_return,
     ValidationError,
+    ALLOWED_VENDOR_STATUSES,
 )
 from app.services.wallet_ops import InsufficientFunds
 from models.shop import Shop
@@ -278,6 +279,8 @@ def update_order_status(order_id):
     user = request.user
     data = request.get_json()
     new_status = data.get("status")
+    if new_status not in ALLOWED_VENDOR_STATUSES:
+        return error("Invalid status", status=400)
     order = Order.query.get(order_id)
     if not order:
         return error("Order not found", status=404)
