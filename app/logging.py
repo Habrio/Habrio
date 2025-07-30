@@ -1,7 +1,13 @@
 import logging
+import json
+import os
+from typing import Any, Dict
 
 
-def current_request_id():
+SENSITIVE_KEYS = {"otp", "password", "token", "email", "phone_number", "phone"}
+
+
+def current_request_id() -> str:
     try:
         from flask import g
         rid = getattr(g, "request_id", None)
@@ -11,7 +17,7 @@ def current_request_id():
 
 
 class RequestIdFilter(logging.Filter):
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         try:
             record.request_id = current_request_id()
         except Exception:
@@ -19,16 +25,59 @@ class RequestIdFilter(logging.Filter):
         return True
 
 
-def configure_logging(app):
-    fmt = "%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s"
+def _mask_dict(data: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        key: ("[REDACTED]" if key in SENSITIVE_KEYS else value)
+        for key, value in data.items()
+    }
+
+
+class MaskingFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        env = os.getenv("APP_ENV", "development").lower()
+        if isinstance(record.msg, dict):
+            if not (record.levelno == logging.DEBUG and env != "production"):
+                record.msg = _mask_dict(record.msg)
+        if isinstance(record.args, dict):
+            if not (record.levelno == logging.DEBUG and env != "production"):
+                record.args = _mask_dict(record.args)
+        return True
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
+        base = {
+            "time": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "name": record.name,
+            "request_id": getattr(record, "request_id", "n/a"),
+        }
+        if isinstance(record.msg, dict):
+            data = record.msg
+            base.update(data)
+            message = None
+        else:
+            message = record.getMessage()
+        if message:
+            base["message"] = message
+        return json.dumps(base)
+
+
+def configure_logging(app) -> None:
     datefmt = "%Y-%m-%dT%H:%M:%S%z"
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter(fmt=fmt, datefmt=datefmt))
+    handler.setFormatter(JsonFormatter(datefmt=datefmt))
     handler.addFilter(RequestIdFilter())
+    handler.addFilter(MaskingFilter())
 
     app.logger.handlers.clear()
     app.logger.addHandler(handler)
-    level = logging.DEBUG if app.config.get("DEBUG") else logging.INFO
+
+    level_name = os.getenv("LOG_LEVEL")
+    if level_name:
+        level = getattr(logging, level_name.upper(), logging.INFO)
+    else:
+        level = logging.DEBUG if app.config.get("DEBUG") else logging.INFO
     app.logger.setLevel(level)
 
     root = logging.getLogger()
@@ -40,4 +89,3 @@ def configure_logging(app):
     wl.setLevel(level)
     wl.handlers.clear()
     wl.addHandler(handler)
-
