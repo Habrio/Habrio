@@ -178,42 +178,42 @@ GET /consumer/shops/search
 
 Item
 ----
-POST /item/add
+POST /vendor/item/add
     - Auth + vendor role. Body requires title and price, plus optional details.
     - Adds item to vendor's shop.
     Example request:
-        POST /api/v1/item/add
+        POST /api/v1/vendor/item/add
         {"title": "Milk", "price": 2.5}
     Example response:
         {"status": "success", "message": "Item added"}
 
-POST /item/<item_id>/toggle
+POST /vendor/item/<item_id>/toggle
     - Auth + vendor role. Toggles availability of given item if owned by vendor.
     Example request:
-        POST /api/v1/item/1/toggle
+        POST /api/v1/vendor/item/1/toggle
     Example response:
         {"status": "success", "message": "Item availability updated"}
 
-POST /item/update/<item_id>
+POST /vendor/item/update/<item_id>
     - Auth + vendor role. Body with fields to update item.
     Example request:
-        POST /api/v1/item/update/1
+        POST /api/v1/vendor/item/update/1
         {"price": 3.0}
     Example response:
         {"status": "success", "message": "Item updated"}
 
-GET /item/my
+GET /vendor/item/my
     - Auth + vendor role. Returns list of vendor's items.
     Example request:
-        GET /api/v1/item/my
+        GET /api/v1/vendor/item/my
     Example response:
         {"status": "success", "data": [...]}
 
-POST /item/bulk-upload
+POST /vendor/item/bulk-upload
     - Auth + vendor role. Multipart file "file" (.csv/.xls/.xlsx) containing item rows with at least title and price.
     - Creates items in vendor's shop; returns count created.
     Example request:
-        POST /api/v1/item/bulk-upload (multipart/form-data with file)
+        POST /api/v1/vendor/item/bulk-upload (multipart/form-data with file)
     Example response:
         {"status": "success", "message": "X items uploaded"}
 
@@ -362,55 +362,55 @@ GET /consumer/order/history
     Example response:
         {"status": "success", "orders": [...]} 
 
-POST /consumer/order/confirm-modified/<order_id>
+POST /consumer/orders/<order_id>/confirm-modified
     - Auth + consumer role. Confirms vendor modifications to order and refunds difference if any.
     Example request:
-        POST /api/v1/consumer/order/confirm-modified/1
+        POST /api/v1/consumer/orders/1/confirm-modified
     Example response:
         {"status": "success", "refund": 5.0}
 
-POST /consumer/order/cancel/<order_id>
+POST /consumer/orders/<order_id>/cancel
     - Auth + consumer role. Cancels order and refunds if prepaid.
     Example request:
-        POST /api/v1/consumer/order/cancel/1
+        POST /api/v1/consumer/orders/1/cancel
     Example response:
         {"status": "success", "message": "Order cancelled", "refund": 10.0}
 
-POST /consumer/order/message/send/<order_id>
+POST /consumer/orders/<order_id>/message
     - Auth + consumer role. Body: message. Sends message on order.
     Example request:
-        POST /api/v1/consumer/order/message/send/1
+        POST /api/v1/consumer/orders/1/message
         {"message": "When will it arrive?"}
     Example response:
         {"status": "success", "message": "Message sent"}
 
-GET /consumer/order/messages/<order_id>
+GET /consumer/orders/<order_id>/messages
     - Auth + consumer role. Retrieves message history for order.
     Example request:
-        GET /api/v1/consumer/order/messages/1
+        GET /api/v1/consumer/orders/1/messages
     Example response:
         {"status": "success", "messages": [...]} 
 
-POST /consumer/order/rate/<order_id>
+POST /consumer/orders/<order_id>/rate
     - Auth + consumer role. Body: rating (1-5), review(optional). Rates delivered order.
     Example request:
-        POST /api/v1/consumer/order/rate/1
+        POST /api/v1/consumer/orders/1/rate
         {"rating": 5, "review": "Great"}
     Example response:
         {"status": "success", "message": "Thank you for rating!"}
 
-POST /consumer/order/issue/<order_id>
+POST /consumer/orders/<order_id>/issue
     - Auth + consumer role. Body: issue_type, description. Raises issue for delivered order.
     Example request:
-        POST /api/v1/consumer/order/issue/1
+        POST /api/v1/consumer/orders/1/issue
         {"issue_type": "missing_item", "description": "Item X not delivered"}
     Example response:
         {"status": "success", "message": "Issue raised"}
 
-POST /consumer/order/return/raise/<order_id>
+POST /consumer/orders/<order_id>/return/raise
     - Auth + consumer role. Body: reason, items[{item_id, quantity}]. Requests return of items from delivered order.
     Example request:
-        POST /api/v1/consumer/order/return/raise/1
+        POST /api/v1/consumer/orders/1/return/raise
         {"reason": "damaged", "items": [{"item_id": 1, "quantity": 1}]}
     Example response:
         {"status": "success", "message": "Return request sent"}

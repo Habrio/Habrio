@@ -79,7 +79,7 @@ def get_order_history():
     return jsonify({"status": "success", "orders": result}), 200
 
 
-@consumer_bp.route("/order/confirm-modified/<int:order_id>", methods=["POST"])
+@consumer_bp.route("/orders/<int:order_id>/confirm-modified", methods=["POST"])
 @auth_required
 @role_required("consumer")
 def confirm_modified_order(order_id):
@@ -98,7 +98,7 @@ def confirm_modified_order(order_id):
         return internal_error_response()
 
 
-@consumer_bp.route("/order/cancel/<int:order_id>", methods=["POST"])
+@consumer_bp.route("/orders/<int:order_id>/cancel", methods=["POST"])
 @auth_required
 @role_required("consumer")
 def cancel_order_consumer(order_id):
@@ -117,7 +117,7 @@ def cancel_order_consumer(order_id):
         return internal_error_response()
 
 
-@consumer_bp.route("/order/message/send/<int:order_id>", methods=["POST"])
+@consumer_bp.route("/orders/<int:order_id>/message", methods=["POST"])
 @auth_required
 @role_required("consumer")
 def send_order_message_consumer(order_id):
@@ -139,7 +139,7 @@ def send_order_message_consumer(order_id):
     return jsonify({"status": "success", "message": "Message sent"}), 200
 
 
-@consumer_bp.route("/order/messages/<int:order_id>", methods=["GET"])
+@consumer_bp.route("/orders/<int:order_id>/messages", methods=["GET"])
 @auth_required
 @role_required("consumer")
 def get_order_messages_consumer(order_id):
@@ -152,7 +152,7 @@ def get_order_messages_consumer(order_id):
     return jsonify({"status": "success", "messages": result}), 200
 
 
-@consumer_bp.route("/order/rate/<int:order_id>", methods=["POST"])
+@consumer_bp.route("/orders/<int:order_id>/rate", methods=["POST"])
 @auth_required
 @role_required("consumer")
 def rate_order(order_id):
@@ -188,7 +188,7 @@ def rate_order(order_id):
     return jsonify({"status": "success", "message": "Thank you for rating!", "rating": rating_entry.to_dict()}), 200
 
 
-@consumer_bp.route("/order/issue/<int:order_id>", methods=["POST"])
+@consumer_bp.route("/orders/<int:order_id>/issue", methods=["POST"])
 @auth_required
 @role_required("consumer")
 def raise_order_issue(order_id):
@@ -220,7 +220,7 @@ def raise_order_issue(order_id):
     return jsonify({"status": "success", "message": "Issue raised"}), 200
 
 
-@consumer_bp.route("/order/return/raise/<int:order_id>", methods=["POST"])
+@consumer_bp.route("/orders/<int:order_id>/return/raise", methods=["POST"])
 @auth_required
 @role_required("consumer")
 def request_return(order_id):
