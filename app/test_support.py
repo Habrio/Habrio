@@ -5,12 +5,12 @@ from app.utils import role_required
 import logging
 from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance, InsufficientFunds
 from app.utils import create_access_token, create_refresh_token
-from app.routes.consumer.orders import (
+from app.services.consumer.orders import (
     confirm_order_service,
     confirm_modified_order_service,
     cancel_order_by_consumer as cancel_order_service,
 )
-from app.routes.vendor.orders import (
+from app.services.vendor.orders import (
     update_status_by_vendor as update_status_service,
     cancel_order_by_vendor as cancel_order_vendor_service,
     service_complete_return as complete_return_service,
