@@ -1,7 +1,6 @@
 from .onboarding.auth import auth_bp
 from .onboarding.user import user_bp
 from .vendor import vendor_bp
-from .vendor.items import item_bp
 from .consumer import consumer_bp
 from .admin import admin_bp
 try:
@@ -17,5 +16,4 @@ __all__ = [
     'consumer_bp',
     'admin_bp',
     'agent_bp',
-    'item_bp',
 ]
