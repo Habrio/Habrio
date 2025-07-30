@@ -1,37 +1,28 @@
-from flask import Blueprint
-# --- services/item.py ---
 from flask import request, jsonify
+from datetime import datetime
+import pandas as pd
+from werkzeug.utils import secure_filename
 from app.version import API_PREFIX
 from models.item import Item
 from models.shop import Shop
 from models import db
-from app.utils import auth_required
-from app.utils import role_required, transactional
-from datetime import datetime
-import pandas as pd
-from werkzeug.utils import secure_filename
-import os
-import logging
+from flask import Blueprint
+from app.utils import auth_required, role_required, transactional, error, internal_error_response
+
 item_bp = Blueprint("item", __name__, url_prefix=API_PREFIX)
 
-from app.utils import internal_error_response
-from app.utils import error
-
-@item_bp.route("/item/add", methods=["POST"])
+@item_bp.route('/item/add', methods=['POST'])
 @auth_required
-@role_required(["vendor"])
+@role_required(['vendor'])
 def add_item():
     user = request.user
     data = request.get_json()
-
     required_fields = ["title", "price"]
     if not all(field in data for field in required_fields):
         return error("Missing required fields", status=400)
-
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop:
         return error("Shop not found", status=404)
-
     item = Item(
         shop_id=shop.id,
         title=data["title"],
@@ -51,47 +42,40 @@ def add_item():
         expiry_date=data.get("expiry_date"),
         image_url=data.get("image_url")
     )
-
     try:
         with transactional("Failed to add item"):
             db.session.add(item)
     except Exception:
         return internal_error_response()
-
     return jsonify({"status": "success", "message": "Item added"}), 200
 
-@item_bp.route("/item/<int:item_id>/toggle", methods=["POST"])
+@item_bp.route('/item/<int:item_id>/toggle', methods=['POST'])
 @auth_required
-@role_required(["vendor"])
+@role_required(['vendor'])
 def toggle_item_availability(item_id):
     user = request.user
     item = Item.query.get(item_id)
     shop = Shop.query.filter_by(phone=user.phone).first()
-
     if not item or item.shop_id != shop.id:
         return error("Item not found or unauthorized", status=404)
-
     item.is_available = not item.is_available
     try:
         with transactional("Failed to toggle item availability"):
             pass
     except Exception:
         return internal_error_response()
-
     return jsonify({"status": "success", "message": "Item availability updated"}), 200
 
-@item_bp.route("/item/update/<int:item_id>", methods=["POST"])
+@item_bp.route('/item/update/<int:item_id>', methods=['POST'])
 @auth_required
-@role_required(["vendor"])
+@role_required(['vendor'])
 def update_item(item_id):
     user = request.user
     data = request.get_json()
     item = Item.query.get(item_id)
     shop = Shop.query.filter_by(phone=user.phone).first()
-
     if not item or item.shop_id != shop.id:
         return error("Item not found or unauthorized", status=404)
-
     item.title = data.get("title", item.title)
     item.brand = data.get("brand", item.brand)
     item.description = data.get("description", item.description)
@@ -107,7 +91,6 @@ def update_item(item_id):
     item.expiry_date = data.get("expiry_date", item.expiry_date)
     item.image_url = data.get("image_url", item.image_url)
     item.updated_at = datetime.utcnow()
-
     try:
         with transactional("Failed to update item"):
             pass
@@ -115,15 +98,14 @@ def update_item(item_id):
         return internal_error_response()
     return jsonify({"status": "success", "message": "Item updated"}), 200
 
-@item_bp.route("/item/my", methods=["GET"])
+@item_bp.route('/item/my', methods=['GET'])
 @auth_required
-@role_required(["vendor"])
+@role_required(['vendor'])
 def get_items():
     user = request.user
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop:
         return error("Shop not found", status=404)
-
     items = Item.query.filter_by(shop_id=shop.id).all()
     result = [
         {
@@ -148,19 +130,16 @@ def get_items():
     ]
     return jsonify({"status": "success", "data": result}), 200
 
-@item_bp.route("/item/bulk-upload", methods=["POST"])
+@item_bp.route('/item/bulk-upload', methods=['POST'])
 @auth_required
-@role_required(["vendor"])
+@role_required(['vendor'])
 def bulk_upload_items():
     user = request.user
     file = request.files.get("file")
-
     if not file:
         return error("No file uploaded", status=400)
-
     filename = secure_filename(file.filename)
     ext = filename.split('.')[-1].lower()
-
     try:
         if ext == "csv":
             df = pd.read_csv(file)
@@ -170,15 +149,12 @@ def bulk_upload_items():
             return error("Unsupported file type", status=400)
     except Exception as e:
         return error(f"File read error: {str(e)}", status=400)
-
     required_columns = {"title", "price"}
     if not required_columns.issubset(set(df.columns)):
         return error(f"Missing columns: {required_columns}", status=400)
-
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop:
         return error("Shop not found", status=404)
-
     created = 0
     for _, row in df.iterrows():
         try:
@@ -205,52 +181,9 @@ def bulk_upload_items():
             created += 1
         except Exception:
             continue
-
     try:
         with transactional("Failed to bulk upload items"):
             pass
     except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": f"{created} items uploaded"}), 200
-
-
-# View items available in a given shop
-@item_bp.route("/shop/<int:shop_id>/items", methods=["GET"])
-@auth_required
-@role_required(["consumer"])
-def view_items_by_shop(shop_id):
-    # 1. Verify shop exists and is currently open
-    shop = Shop.query.get(shop_id)
-    if not shop:
-        return error("Shop not found", status=404)
-    if not shop.is_open:
-        return error("Shop is currently closed", status=403)
-
-    # 2. Fetch only available items
-    items = Item.query.filter_by(shop_id=shop_id, is_available=True).all()
-
-    # 3. Build response list
-    item_list = []
-    for item in items:
-        item_list.append({
-            "id": item.id,
-            "title": item.title,
-            "brand": item.brand,
-            "price": item.price,
-            "mrp": item.mrp,
-            "discount": item.discount,
-            "description": item.description,
-            "unit": item.unit,
-            "pack_size": item.pack_size,
-            "category": item.category,
-            "tags": item.tags,
-            "sku": item.sku,
-            "expiry_date": item.expiry_date.strftime("%Y-%m-%d") if item.expiry_date else None,
-            "image_url": item.image_url
-        })
-
-    return jsonify({"status": "success", "shop": {
-                        "id": shop.id,
-                        "shop_name": shop.shop_name,
-                        "shop_type": shop.shop_type
-                    }, "items": item_list}), 200

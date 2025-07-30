@@ -3,8 +3,8 @@ API Routes Summary
 
 Base path for versioned APIs: /api/v1
 
-Routes are grouped under `consumer`, `vendor` and `admin` packages inside
-`app/routes` with separate modules for each feature area.
+Routes are grouped under `onboarding`, `consumer`, `vendor` and `admin`
+packages inside `app/routes` with separate modules for each feature area.
 
 Authentication
 --------------
@@ -517,7 +517,7 @@ GET /admin/orders
 Agent (optional)
 ----------------
 POST /agent/query
-    - Requires OPENAI_API_KEY configured and user authenticated.
+    - Requires OPENAI_API_KEY configured and user authenticated as a consumer.
     - Body: {"query": str}
     - Returns assistant answer and suggestions or error if failure.
     Example request:

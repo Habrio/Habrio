@@ -2,7 +2,6 @@ from app.routes import (
     auth_bp,
     user_bp,
     vendor_bp,
-    shop_bp,
     item_bp,
     consumer_bp,
     admin_bp,
@@ -17,7 +16,6 @@ def register_api_v1(app):
     app.register_blueprint(auth_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(vendor_bp)
-    app.register_blueprint(shop_bp)
     app.register_blueprint(item_bp)
     app.register_blueprint(consumer_bp)
     app.register_blueprint(admin_bp)

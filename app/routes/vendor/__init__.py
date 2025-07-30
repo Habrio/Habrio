@@ -7,3 +7,4 @@ from . import profile  # noqa: E402
 from . import shop  # noqa: E402
 from . import orders  # noqa: E402
 from . import wallet  # noqa: E402
+from . import items  # noqa: E402
