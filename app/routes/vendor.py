@@ -5,7 +5,7 @@ from app.utils import auth_required
 from app.utils import role_required
 import logging
 from app.utils import internal_error_response
-from app.utils import error
+from app.utils import error, transactional
 from app.services import vendor_service
 from app.services.vendor_service import ValidationError
 from app.utils import has_required_fields
@@ -23,15 +23,12 @@ def vendor_profile_setup():
     if not has_required_fields(data, required):
         return error("Missing required vendor details", status=400)
     try:
-        vendor_service.create_vendor_profile(user, data)
-        db.session.commit()
+        with transactional("Failed to create vendor profile"):
+            vendor_service.create_vendor_profile(user, data)
         return jsonify({"status": "success", "message": "Vendor profile created"}), 200
     except ValidationError as e:
-        db.session.rollback()
         return error(str(e), status=400)
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to create vendor profile: %s", e, exc_info=True)
+    except Exception:
         return internal_error_response()
 
 # Vendor Onboarding Documents-----------------
@@ -45,15 +42,12 @@ def upload_vendor_document():
     doc_type = data.get("document_type")
     file_url = data.get("file_url")
     try:
-        vendor_service.add_document(user, doc_type, file_url)
-        db.session.commit()
+        with transactional("Failed to upload vendor document"):
+            vendor_service.add_document(user, doc_type, file_url)
         return jsonify({"status": "success", "message": "Document uploaded"}), 200
     except ValidationError as e:
-        db.session.rollback()
         return error(str(e), status=400)
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to upload vendor document: %s", e, exc_info=True)
+    except Exception:
         return internal_error_response()
 
 # Vendor Payout info ----------------
@@ -64,13 +58,10 @@ def setup_payout_bank():
     user = request.user
     data = request.get_json()
     try:
-        vendor_service.setup_payout(user, data)
-        db.session.commit()
+        with transactional("Failed to setup payout bank"):
+            vendor_service.setup_payout(user, data)
         return jsonify({"status": "success", "message": "Payout bank info saved"}), 200
     except ValidationError as e:
-        db.session.rollback()
         return error(str(e), status=400)
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to setup payout bank: %s", e, exc_info=True)
+    except Exception:
         return internal_error_response()

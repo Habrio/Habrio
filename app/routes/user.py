@@ -4,7 +4,7 @@ from models.user import ConsumerProfile
 from models import db
 from app.utils import auth_required
 from app.utils import role_required
-from app.utils import error, has_required_fields
+from app.utils import error, has_required_fields, transactional
 import logging
 from app.utils import internal_error_response
 
@@ -31,12 +31,10 @@ def basic_onboarding():
     user.role = data["role"]
     user.basic_onboarding_done = True
 
-    db.session.add(user)
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed basic onboarding: %s", e, exc_info=True)
+        with transactional("Failed basic onboarding"):
+            db.session.add(user)
+    except Exception:
         return internal_error_response()
 
     return jsonify({"status": "success", "message": "Basic onboarding complete"}), 200
@@ -70,13 +68,11 @@ def consumer_onboarding():
         preferred_language=data.get("preferred_language")
     )
 
-    db.session.add(consumer_profile)
-    user.role_onboarding_done = True
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed consumer onboarding: %s", e, exc_info=True)
+        with transactional("Failed consumer onboarding"):
+            db.session.add(consumer_profile)
+            user.role_onboarding_done = True
+    except Exception:
         return internal_error_response()
 
     return jsonify({"status": "success", "message": "Consumer onboarding done"}), 200
@@ -117,9 +113,8 @@ def edit_consumer_profile():
     profile.preferred_language = data.get("preferred_language", profile.preferred_language)
 
     try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error("Failed to edit consumer profile: %s", e, exc_info=True)
+        with transactional("Failed to edit consumer profile"):
+            pass  # changes already on profile object
+    except Exception:
         return internal_error_response()
     return jsonify({"status": "success", "message": "Profile updated"}), 200

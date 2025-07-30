@@ -18,7 +18,7 @@ from app.utils import role_required
 from decimal import Decimal
 import logging
 from app.utils import internal_error_response
-from app.utils import error
+from app.utils import error, transactional
 from app.services.wallet_ops import (
     adjust_consumer_balance,
     adjust_vendor_balance,
@@ -36,12 +36,10 @@ def get_or_create_wallet():
     wallet = ConsumerWallet.query.filter_by(user_phone=user.phone).first()
     if not wallet:
         wallet = ConsumerWallet(user_phone=user.phone, balance=Decimal("0.00"))
-        db.session.add(wallet)
         try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            logging.error("Failed to create wallet: %s", e, exc_info=True)
+            with transactional("Failed to create wallet"):
+                db.session.add(wallet)
+        except Exception:
             return internal_error_response()
     return jsonify({"status": "success", "balance": float(wallet.balance)}), 200
 
@@ -70,20 +68,18 @@ def load_wallet():
         if amount <= 0:
             return error("Invalid amount", status=400)
 
-        new_bal = adjust_consumer_balance(
-            user.phone,
-            amount,
-            reference=data.get("reference", "manual-load"),
-            type="recharge",
-            source="api",
-        )
-        db.session.commit()
+        with transactional("Failed to load wallet"):
+            new_bal = adjust_consumer_balance(
+                user.phone,
+                amount,
+                reference=data.get("reference", "manual-load"),
+                type="recharge",
+                source="api",
+            )
         return jsonify({"status": "success", "balance": float(new_bal)}), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to load wallet: %s", e, exc_info=True)
         return internal_error_response()
 
@@ -100,20 +96,18 @@ def debit_wallet():
         amount = Decimal(str(data.get("amount", "0")))
         reference = data.get("reference", "manual-debit")
 
-        new_bal = adjust_consumer_balance(
-            user.phone,
-            -amount,
-            reference=reference,
-            type="debit",
-            source="api",
-        )
-        db.session.commit()
+        with transactional("Failed to debit wallet"):
+            new_bal = adjust_consumer_balance(
+                user.phone,
+                -amount,
+                reference=reference,
+                type="debit",
+                source="api",
+            )
         return jsonify({"status": "success", "balance": float(new_bal)}), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to debit wallet: %s", e, exc_info=True)
         return internal_error_response()
 
@@ -130,20 +124,18 @@ def refund_wallet():
         amount = Decimal(str(data.get("amount", "0")))
         reference = data.get("reference", "manual-refund")
 
-        new_bal = adjust_consumer_balance(
-            user.phone,
-            amount,
-            reference=reference,
-            type="refund",
-            source="api",
-        )
-        db.session.commit()
+        with transactional("Failed to refund wallet"):
+            new_bal = adjust_consumer_balance(
+                user.phone,
+                amount,
+                reference=reference,
+                type="refund",
+                source="api",
+            )
         return jsonify({"status": "success", "balance": float(new_bal)}), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to refund wallet: %s", e, exc_info=True)
         return internal_error_response()
 
@@ -159,12 +151,10 @@ def get_vendor_wallet():
     wallet = VendorWallet.query.filter_by(user_phone=user.phone).first()
     if not wallet:
         wallet = VendorWallet(user_phone=user.phone, balance=Decimal("0.00"))
-        db.session.add(wallet)
         try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            logging.error("Failed to create vendor wallet: %s", e, exc_info=True)
+            with transactional("Failed to create vendor wallet"):
+                db.session.add(wallet)
+        except Exception:
             return internal_error_response()
     return jsonify({"status": "success", "balance": float(wallet.balance)}), 200
 
@@ -195,20 +185,18 @@ def credit_vendor_wallet():
         if amount <= 0:
             return error("Invalid credit amount", status=400)
 
-        new_bal = adjust_vendor_balance(
-            user.phone,
-            amount,
-            reference=reference,
-            type="credit",
-            source="api",
-        )
-        db.session.commit()
+        with transactional("Failed to credit vendor wallet"):
+            new_bal = adjust_vendor_balance(
+                user.phone,
+                amount,
+                reference=reference,
+                type="credit",
+                source="api",
+            )
         return jsonify({"status": "success", "balance": float(new_bal)}), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to credit vendor wallet: %s", e, exc_info=True)
         return internal_error_response()
 
@@ -225,20 +213,18 @@ def debit_vendor_wallet():
         amount = Decimal(str(data.get("amount", "0")))
         reference = data.get("reference", "manual-debit")
 
-        new_bal = adjust_vendor_balance(
-            user.phone,
-            -amount,
-            reference=reference,
-            type="debit",
-            source="api",
-        )
-        db.session.commit()
+        with transactional("Failed to debit vendor wallet"):
+            new_bal = adjust_vendor_balance(
+                user.phone,
+                -amount,
+                reference=reference,
+                type="debit",
+                source="api",
+            )
         return jsonify({"status": "success", "balance": float(new_bal)}), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to debit vendor wallet: %s", e, exc_info=True)
         return internal_error_response()
 
@@ -262,14 +248,14 @@ def withdraw_vendor_wallet():
         if not bank:
             return error("No payout bank setup found", status=400)
 
-        new_bal = adjust_vendor_balance(
-            user.phone,
-            -amount,
-            reference=f"Withdraw to {bank.account_number}",
-            type="withdrawal",
-            source="api",
-        )
-        db.session.commit()
+        with transactional("Failed to withdraw vendor wallet"):
+            new_bal = adjust_vendor_balance(
+                user.phone,
+                -amount,
+                reference=f"Withdraw to {bank.account_number}",
+                type="withdrawal",
+                source="api",
+            )
         return jsonify({
             "status": "success",
             "message": "Withdrawal initiated",
@@ -277,9 +263,7 @@ def withdraw_vendor_wallet():
             "balance": float(new_bal)
         }), 200
     except InsufficientFunds as e:
-        db.session.rollback()
         return error(str(e), status=400)
     except Exception as e:
-        db.session.rollback()
         logging.error("Failed to withdraw vendor wallet: %s", e, exc_info=True)
         return internal_error_response()
