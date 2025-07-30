@@ -13,7 +13,7 @@ def obtain_token(client, phone, role="consumer", *args):
 def onboard_consumer(client, token):
     basic = {'name': 'C', 'city': 'Town', 'society': 'Soc', 'role': 'consumer'}
     client.post(f"{API_PREFIX}/onboarding/basic", json=basic, headers={'Authorization': f'Bearer {token}'})
-    client.post(f"{API_PREFIX}/onboarding/consumer", json={'flat_number': '1A'}, headers={'Authorization': f'Bearer {token}'})
+    client.post(f"{API_PREFIX}/consumer/onboarding", json={'flat_number': '1A'}, headers={'Authorization': f'Bearer {token}'})
 
 
 def onboard_vendor(client, token):
@@ -34,7 +34,7 @@ def test_get_or_create_wallet(client, app):
     token = obtain_token(client, phone)
     onboard_consumer(client, token)
 
-    resp = client.get('/api/v1/wallet', headers={'Authorization': f'Bearer {token}'})
+    resp = client.get('/api/v1/consumer/wallet', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     assert resp.get_json()['balance'] == 0.0
     with app.app_context():
@@ -42,7 +42,7 @@ def test_get_or_create_wallet(client, app):
         assert wallet is not None
         assert float(wallet.balance) == 0.0
 
-    resp2 = client.get('/api/v1/wallet', headers={'Authorization': f'Bearer {token}'})
+    resp2 = client.get('/api/v1/consumer/wallet', headers={'Authorization': f'Bearer {token}'})
     assert resp2.status_code == 200
     assert resp2.get_json()['balance'] == 0.0
     with app.app_context():
@@ -54,7 +54,7 @@ def test_load_wallet_success_and_invalid_amount(client, app):
     token = obtain_token(client, phone)
     onboard_consumer(client, token)
 
-    resp = client.post('/api/v1/wallet/load', json={'amount': 500}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/wallet/load', json={'amount': 500}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     assert resp.get_json()['balance'] == 500.0
     with app.app_context():
@@ -63,7 +63,7 @@ def test_load_wallet_success_and_invalid_amount(client, app):
         txn = WalletTransaction.query.filter_by(user_phone=phone, type='recharge').first()
         assert txn and float(txn.amount) == 500.0
 
-    resp_bad = client.post('/api/v1/wallet/load', json={'amount': 0}, headers={'Authorization': f'Bearer {token}'})
+    resp_bad = client.post('/api/v1/consumer/wallet/load', json={'amount': 0}, headers={'Authorization': f'Bearer {token}'})
     assert resp_bad.status_code == 400
     assert resp_bad.get_json()['message'] == 'Invalid amount'
     with app.app_context():
@@ -75,9 +75,9 @@ def test_debit_wallet_success_and_insufficient(client, app):
     phone = '7000000003'
     token = obtain_token(client, phone)
     onboard_consumer(client, token)
-    client.post('/api/v1/wallet/load', json={'amount': 300}, headers={'Authorization': f'Bearer {token}'})
+    client.post('/api/v1/consumer/wallet/load', json={'amount': 300}, headers={'Authorization': f'Bearer {token}'})
 
-    resp = client.post('/api/v1/wallet/debit', json={'amount': 100}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/wallet/debit', json={'amount': 100}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     assert resp.get_json()['balance'] == 200.0
     with app.app_context():
@@ -85,7 +85,7 @@ def test_debit_wallet_success_and_insufficient(client, app):
         assert float(wallet.balance) == 200.0
         assert WalletTransaction.query.filter_by(user_phone=phone, type='debit').count() == 1
 
-    resp_bad = client.post('/api/v1/wallet/debit', json={'amount': 400}, headers={'Authorization': f'Bearer {token}'})
+    resp_bad = client.post('/api/v1/consumer/wallet/debit', json={'amount': 400}, headers={'Authorization': f'Bearer {token}'})
     assert resp_bad.status_code == 400
     assert resp_bad.get_json()['message'] == 'Insufficient balance'
     with app.app_context():
@@ -96,7 +96,7 @@ def test_debit_wallet_success_and_insufficient(client, app):
     phone2 = '7000000004'
     token2 = obtain_token(client, phone2)
     onboard_consumer(client, token2)
-    resp_none = client.post('/api/v1/wallet/debit', json={'amount': 50}, headers={'Authorization': f'Bearer {token2}'})
+    resp_none = client.post('/api/v1/consumer/wallet/debit', json={'amount': 50}, headers={'Authorization': f'Bearer {token2}'})
     assert resp_none.status_code == 400
     assert resp_none.get_json()['message'] == 'Insufficient balance'
 
@@ -106,7 +106,7 @@ def test_refund_wallet_creates_wallet(client, app):
     token = obtain_token(client, phone)
     onboard_consumer(client, token)
 
-    resp = client.post('/api/v1/wallet/refund', json={'amount': 120}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/wallet/refund', json={'amount': 120}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     assert resp.get_json()['balance'] == 120.0
     with app.app_context():
@@ -121,11 +121,11 @@ def test_wallet_transaction_history(client, app):
     token = obtain_token(client, phone)
     onboard_consumer(client, token)
 
-    client.post('/api/v1/wallet/load', json={'amount': 50}, headers={'Authorization': f'Bearer {token}'})
-    client.post('/api/v1/wallet/debit', json={'amount': 20}, headers={'Authorization': f'Bearer {token}'})
-    client.post('/api/v1/wallet/refund', json={'amount': 10}, headers={'Authorization': f'Bearer {token}'})
+    client.post('/api/v1/consumer/wallet/load', json={'amount': 50}, headers={'Authorization': f'Bearer {token}'})
+    client.post('/api/v1/consumer/wallet/debit', json={'amount': 20}, headers={'Authorization': f'Bearer {token}'})
+    client.post('/api/v1/consumer/wallet/refund', json={'amount': 10}, headers={'Authorization': f'Bearer {token}'})
 
-    resp = client.get('/api/v1/wallet/history', headers={'Authorization': f'Bearer {token}'})
+    resp = client.get('/api/v1/consumer/wallet/history', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     data = resp.get_json()['transactions']
     assert len(data) == 3

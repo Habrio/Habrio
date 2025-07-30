@@ -21,7 +21,7 @@ def onboard_consumer(client, token):
         'role': 'consumer'
     }
     client.post(f"{API_PREFIX}/onboarding/basic", json=basic, headers={'Authorization': f'Bearer {token}'})
-    client.post(f"{API_PREFIX}/onboarding/consumer", json={'flat_number': '1A'}, headers={'Authorization': f'Bearer {token}'})
+    client.post(f"{API_PREFIX}/consumer/onboarding", json={'flat_number': '1A'}, headers={'Authorization': f'Bearer {token}'})
 
 
 def create_item(app, price=10.0):
@@ -36,11 +36,11 @@ def create_item(app, price=10.0):
 
 
 def add_to_cart_helper(client, token, item_id, qty):
-    return client.post(f"{API_PREFIX}/cart/add", json={'item_id': item_id, 'quantity': qty}, headers={'Authorization': f'Bearer {token}'})
+    return client.post(f"{API_PREFIX}/consumer/cart/add", json={'item_id': item_id, 'quantity': qty}, headers={'Authorization': f'Bearer {token}'})
 
 
 def load_wallet(client, token, amount):
-    return client.post(f"{API_PREFIX}/wallet/load", json={'amount': amount}, headers={'Authorization': f'Bearer {token}'})
+    return client.post(f"{API_PREFIX}/consumer/wallet/load", json={'amount': amount}, headers={'Authorization': f'Bearer {token}'})
 
 
 # -------------------- Cart Operations --------------------
@@ -59,7 +59,7 @@ def test_cart_add_view_update_remove_clear(client, app):
         assert ci and ci.quantity == 2
 
     # view cart
-    view = client.get('/api/v1/cart/view', headers={'Authorization': f'Bearer {token}'})
+    view = client.get('/api/v1/consumer/cart/view', headers={'Authorization': f'Bearer {token}'})
     data = view.get_json()
     assert view.status_code == 200
     assert len(data['cart']) == 1
@@ -67,22 +67,22 @@ def test_cart_add_view_update_remove_clear(client, app):
     assert data['cart'][0]['item_id'] == item_id
 
     # update quantity
-    resp = client.post('/api/v1/cart/update', json={'item_id': item_id, 'quantity': 3}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/cart/update', json={'item_id': item_id, 'quantity': 3}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     with app.app_context():
         assert CartItem.query.filter_by(user_phone=phone, item_id=item_id).first().quantity == 3
 
     # remove item
-    resp = client.post('/api/v1/cart/remove', json={'item_id': item_id}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/cart/remove', json={'item_id': item_id}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     with app.app_context():
         assert CartItem.query.filter_by(user_phone=phone).count() == 0
 
     # add again then clear
     add_to_cart_helper(client, token, item_id, 1)
-    resp = client.post('/api/v1/cart/clear', headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/cart/clear', headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
-    view = client.get('/api/v1/cart/view', headers={'Authorization': f'Bearer {token}'})
+    view = client.get('/api/v1/consumer/cart/view', headers={'Authorization': f'Bearer {token}'})
     assert view.get_json()['cart'] == []
 
 
@@ -101,10 +101,10 @@ def test_cart_add_missing_fields(client, app):
     onboard_consumer(client, token)
     item_id, _ = create_item(app)
 
-    resp = client.post('/api/v1/cart/add', json={'quantity': 1}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/cart/add', json={'quantity': 1}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 404
 
-    resp = client.post('/api/v1/cart/add', json={'item_id': item_id, 'quantity': 0}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/cart/add', json={'item_id': item_id, 'quantity': 0}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 400
 
 
@@ -116,13 +116,13 @@ def test_update_cart_invalid_request(client, app):
 
     add_to_cart_helper(client, token, item_id, 1)
 
-    resp = client.post('/api/v1/cart/update', json={'item_id': item_id, 'quantity': 0}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/cart/update', json={'item_id': item_id, 'quantity': 0}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 400
 
-    resp = client.post('/api/v1/cart/update', json={'quantity': 2}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/cart/update', json={'quantity': 2}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 400
 
-    resp = client.post('/api/v1/cart/update', json={'item_id': item_id + 1, 'quantity': 2}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/cart/update', json={'item_id': item_id + 1, 'quantity': 2}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 404
 
 
@@ -136,7 +136,7 @@ def test_confirm_order_wallet_and_cash(client, app):
 
     add_to_cart_helper(client, token, item_id, 2)  # total 30
     load_wallet(client, token, 50)
-    resp = client.post('/api/v1/order/confirm', json={'payment_mode': 'wallet'}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/order/confirm', json={'payment_mode': 'wallet'}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     order_id = resp.get_json()['order_id']
     with app.app_context():
@@ -149,11 +149,11 @@ def test_confirm_order_wallet_and_cash(client, app):
         assert OrderItem.query.filter_by(order_id=order_id).count() == 1
         assert WalletTransaction.query.filter_by(user_phone=phone, type='debit').count() == 1
         assert CartItem.query.filter_by(user_phone=phone).count() == 0
-    assert client.get('/api/v1/cart/view', headers={'Authorization': f'Bearer {token}'}).get_json()['cart'] == []
+    assert client.get('/api/v1/consumer/cart/view', headers={'Authorization': f'Bearer {token}'}).get_json()['cart'] == []
 
     # cash mode
     add_to_cart_helper(client, token, item_id, 1)
-    resp = client.post('/api/v1/order/confirm', json={'payment_mode': 'cash'}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/order/confirm', json={'payment_mode': 'cash'}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 200
     order_id2 = resp.get_json()['order_id']
     with app.app_context():
@@ -172,11 +172,11 @@ def test_confirm_order_errors(client, app):
     item_id, _ = create_item(app, price=10)
 
     # empty cart
-    resp = client.post('/api/v1/order/confirm', json={'payment_mode': 'cash'}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/order/confirm', json={'payment_mode': 'cash'}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 400
 
     # insufficient wallet balance
     add_to_cart_helper(client, token, item_id, 5)  # total 50
     load_wallet(client, token, 20)
-    resp = client.post('/api/v1/order/confirm', json={'payment_mode': 'wallet'}, headers={'Authorization': f'Bearer {token}'})
+    resp = client.post('/api/v1/consumer/order/confirm', json={'payment_mode': 'wallet'}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 400
