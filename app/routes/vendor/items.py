@@ -6,38 +6,38 @@ from models.item import Item
 from models.shop import Shop
 from models import db
 from app.utils import auth_required, role_required, transactional, error, internal_error_response
+from app.utils.validation import validate_schema
+from app.schemas.vendor import AddItemRequest
 from . import vendor_bp
 
 @vendor_bp.route('/item/add', methods=['POST'])
 @auth_required
 @role_required(['vendor'])
+@validate_schema(AddItemRequest)
 def add_item():
     user = request.user
-    data = request.get_json()
-    required_fields = ["title", "price"]
-    if not all(field in data for field in required_fields):
-        return error("Missing required fields", status=400)
+    data: AddItemRequest = request.validated_data
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop:
         return error("Shop not found", status=404)
     item = Item(
         shop_id=shop.id,
-        title=data["title"],
-        brand=data.get("brand"),
-        description=data.get("description", ""),
-        mrp=data.get("mrp"),
-        price=data["price"],
-        discount=data.get("discount"),
-        quantity_in_stock=data.get("quantity_in_stock", 100),
-        unit=data.get("unit", "pcs"),
-        pack_size=data.get("pack_size"),
+        title=data.title,
+        brand=data.brand,
+        description=data.description,
+        mrp=data.mrp,
+        price=data.price,
+        discount=data.discount,
+        quantity_in_stock=data.quantity_in_stock,
+        unit=data.unit,
+        pack_size=data.pack_size,
         is_available=True,
         is_active=True,
-        category=data.get("category"),
-        tags=data.get("tags"),
-        sku=data.get("sku"),
-        expiry_date=data.get("expiry_date"),
-        image_url=data.get("image_url")
+        category=data.category,
+        tags=data.tags,
+        sku=data.sku,
+        expiry_date=data.expiry_date,
+        image_url=data.image_url
     )
     try:
         with transactional("Failed to add item"):

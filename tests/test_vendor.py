@@ -61,7 +61,7 @@ def test_vendor_profile_missing_fields_and_duplicate(client, app):
     # Missing fields
     resp = client.post('/api/v1/vendor/profile', json={'business_name': 'A'}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 400
-    assert resp.get_json()['message'] == 'Missing required vendor details'
+    assert resp.get_json()['message'] == 'Validation error'
 
     # Successful creation
     payload = {
