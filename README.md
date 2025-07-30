@@ -29,7 +29,11 @@ Set `ALLOW_DB_MIGRATIONS=true` in production to permit upgrades or stamping.
 
 
 ## API Versioning
-- All business endpoints are now served under `/api/v1/...`.
+- All business endpoints are served under `/api/v1/...`.
+- Consumer-facing routes live under `/api/v1/consumer/...` (onboarding, profile, orders, etc.).
+- Vendor-facing routes live under `/api/v1/vendor/...` (shop management, orders, payouts, etc.).
+- Common operations like OTP, login and basic onboarding remain directly under `/api/v1/`.
+- Admin endpoints stay under `/api/v1/admin/...`.
 - Error handlers remain global (no prefix).
 - Test-only routes remain unversioned and, in testing, also available under `/api/v1/test_support/...`.
 - Clients should update their base path to `/api/v1`.
@@ -67,6 +71,14 @@ Basic admin endpoints protected by JWT auth and `admin` role:
 - `GET /api/v1/admin/users` - List recent users
 - `GET /api/v1/admin/shops` - List recent shops
 - `GET /api/v1/admin/orders` - List recent orders
+
+Example consumer routes:
+- `POST /api/v1/consumer/onboarding`
+- `GET /api/v1/consumer/profile/me`
+
+Example vendor routes:
+- `POST /api/v1/vendor/shop`
+- `GET /api/v1/vendor/orders`
 
 ### Optional AI assistant
 
