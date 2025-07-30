@@ -10,6 +10,8 @@ from twilio.rest import Client
 import logging
 from app.utils import internal_error_response
 from app.utils import error, transactional
+from app.utils.validation import validate_schema
+from app.schemas.auth import SendOTPRequest, VerifyOTPRequest
 from app.utils import (
     create_access_token,
     create_refresh_token,
@@ -102,12 +104,10 @@ def send_whatsapp_message(to, body):
     key_func=lambda: (request.get_json() or {}).get("phone", ""),
     error_message="Too many OTP requests for this phone number",
 )
+@validate_schema(SendOTPRequest)
 def send_otp_handler():
-    data = request.get_json()
-    phone = data.get("phone")
-
-    if not phone:
-        return error("Phone number is required", status=400)
+    data: SendOTPRequest = request.validated_data
+    phone = data.phone
 
     otp_code = str(random.randint(100000, 999999))
 
@@ -137,13 +137,11 @@ def send_otp_handler():
     key_func=get_remote_address,
     error_message="Too many logins from this IP",
 )
+@validate_schema(VerifyOTPRequest)
 def verify_otp_handler():
-    data = request.get_json()
-    phone = data.get("phone", "").strip()
-    otp = data.get("otp", "").strip()
-
-    if not phone or not otp:
-        return error("Phone and OTP are required", status=400)
+    data: VerifyOTPRequest = request.validated_data
+    phone = data.phone.strip()
+    otp = data.otp.strip()
 
     otp_record = OTP.query.filter_by(phone=phone, otp=otp, is_used=False).first()
 

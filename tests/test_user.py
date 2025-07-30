@@ -59,7 +59,7 @@ def test_basic_onboarding_missing_fields(client, app):
     token = obtain_token(client, phone)
     resp = client.post('/api/v1/onboarding/basic', json={'name': 'Bob'}, headers={'Authorization': f'Bearer {token}'})
     assert resp.status_code == 400
-    assert resp.get_json()['message'] == 'Missing fields'
+    assert resp.get_json()['message'] == 'Validation error'
 
 
 def test_basic_onboarding_already_onboarded(client, app):

@@ -26,3 +26,13 @@ def internal_error_response():
         "An unexpected error occurred, please try again later",
         status=500,
     )
+
+
+def validation_error_response(errors):
+    """Return a standardized validation error envelope."""
+    return jsonify({
+        "status": "error",
+        "message": "Validation error",
+        "errors": errors,
+        "code": 400,
+    }), 400
