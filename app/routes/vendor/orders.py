@@ -11,7 +11,8 @@ from models.order import (
     OrderIssue,
     OrderReturn,
 )
-from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance, InsufficientFunds
+from app.services.consumer.wallet import adjust_consumer_balance, InsufficientFunds
+from app.services.vendor.wallet import adjust_vendor_balance
 from app.utils import auth_required, role_required, transactional, error, internal_error_response
 from . import vendor_bp
 from app.services.vendor.orders import (

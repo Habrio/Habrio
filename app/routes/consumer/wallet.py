@@ -2,7 +2,10 @@ from flask import request, jsonify, current_app
 from decimal import Decimal
 from models import db
 from models.wallet import ConsumerWallet, WalletTransaction
-from app.services.wallet_ops import adjust_consumer_balance, InsufficientFunds
+from app.services.consumer.wallet import (
+    adjust_consumer_balance,
+    InsufficientFunds,
+)
 from app.utils import auth_required, role_required, transactional, error, internal_error_response
 from . import consumer_bp
 

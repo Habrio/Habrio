@@ -4,7 +4,7 @@ import logging
 from models import db
 from models.wallet import VendorWallet, VendorWalletTransaction
 from models.vendor import VendorPayoutBank
-from app.services.wallet_ops import adjust_vendor_balance, InsufficientFunds
+from app.services.vendor.wallet import adjust_vendor_balance, InsufficientFunds
 from app.utils import auth_required, role_required, transactional, error, internal_error_response
 from . import vendor_bp
 
