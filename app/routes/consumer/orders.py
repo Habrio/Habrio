@@ -17,7 +17,7 @@ from models.cart import CartItem
 from models.item import Item
 from app.services.consumer.wallet import adjust_consumer_balance, InsufficientFunds
 from app.services.vendor.wallet import adjust_vendor_balance
-from app.utils import auth_required, role_required, transactional, error, internal_error_response
+from app.utils import transactional, error, internal_error_response
 from . import consumer_bp
 from app.services.consumer.orders import (
     ValidationError,
@@ -31,8 +31,6 @@ ALLOWED_VENDOR_STATUSES = ["accepted", "rejected", "delivered"]
 
 @consumer_bp.route("/order/confirm", methods=["POST"])
 @limiter.limit(lambda: current_app.config["ORDER_LIMIT_PER_IP"], key_func=get_remote_address, error_message="Too many orders from this IP")
-@auth_required
-@role_required("consumer")
 def confirm_order():
     user = request.user
     data = request.get_json()
@@ -52,8 +50,6 @@ def confirm_order():
 
 
 @consumer_bp.route("/order/history", methods=["GET"])
-@auth_required
-@role_required("consumer")
 def get_order_history():
     user = request.user
     orders = Order.query.filter_by(user_phone=user.phone).order_by(Order.created_at.desc()).all()
@@ -80,8 +76,6 @@ def get_order_history():
 
 
 @consumer_bp.route("/orders/<int:order_id>/confirm-modified", methods=["POST"])
-@auth_required
-@role_required("consumer")
 def confirm_modified_order(order_id):
     user = request.user
     order = Order.query.get(order_id)
@@ -99,8 +93,6 @@ def confirm_modified_order(order_id):
 
 
 @consumer_bp.route("/orders/<int:order_id>/cancel", methods=["POST"])
-@auth_required
-@role_required("consumer")
 def cancel_order_consumer(order_id):
     user = request.user
     order = Order.query.get(order_id)
@@ -118,8 +110,6 @@ def cancel_order_consumer(order_id):
 
 
 @consumer_bp.route("/orders/<int:order_id>/message", methods=["POST"])
-@auth_required
-@role_required("consumer")
 def send_order_message_consumer(order_id):
     user = request.user
     data = request.get_json()
@@ -140,8 +130,6 @@ def send_order_message_consumer(order_id):
 
 
 @consumer_bp.route("/orders/<int:order_id>/messages", methods=["GET"])
-@auth_required
-@role_required("consumer")
 def get_order_messages_consumer(order_id):
     user = request.user
     order = Order.query.get(order_id)
@@ -153,8 +141,6 @@ def get_order_messages_consumer(order_id):
 
 
 @consumer_bp.route("/orders/<int:order_id>/rate", methods=["POST"])
-@auth_required
-@role_required("consumer")
 def rate_order(order_id):
     user = request.user
     data = request.get_json()
@@ -189,8 +175,6 @@ def rate_order(order_id):
 
 
 @consumer_bp.route("/orders/<int:order_id>/issue", methods=["POST"])
-@auth_required
-@role_required("consumer")
 def raise_order_issue(order_id):
     user = request.user
     data = request.get_json()
@@ -221,8 +205,6 @@ def raise_order_issue(order_id):
 
 
 @consumer_bp.route("/orders/<int:order_id>/return/raise", methods=["POST"])
-@auth_required
-@role_required("consumer")
 def request_return(order_id):
     user = request.user
     data = request.get_json()

@@ -5,8 +5,6 @@ from models import db
 from models.shop import Shop, ShopHours, ShopActionLog
 from app.services.vendor.shop import create_shop_for_vendor, ShopValidationError
 from app.utils import (
-    auth_required,
-    role_required,
     transactional,
     error,
     internal_error_response,
@@ -16,8 +14,6 @@ from . import vendor_bp
 
 
 @vendor_bp.route("/shop", methods=["POST"])
-@auth_required
-@role_required(["vendor"])
 def create_shop():
     user = request.user
     data = request.get_json()
@@ -33,8 +29,6 @@ def create_shop():
 
 
 @vendor_bp.route("/shop/edit", methods=["POST"])
-@auth_required
-@role_required(["vendor"])
 def edit_shop():
     user = request.user
     data = request.get_json()
@@ -62,8 +56,6 @@ def edit_shop():
 
 
 @vendor_bp.route("/shop/my", methods=["GET"])
-@auth_required
-@role_required(["vendor"])
 def get_vendor_shop():
     user = request.user
     shop = Shop.query.filter_by(phone=user.phone).first()
@@ -88,8 +80,6 @@ def get_vendor_shop():
 
 
 @vendor_bp.route("/shop/hours", methods=["POST"])
-@auth_required
-@role_required(["vendor"])
 def update_shop_hours():
     user = request.user
     shop = Shop.query.filter_by(phone=user.phone).first()
@@ -128,8 +118,6 @@ def update_shop_hours():
 
 
 @vendor_bp.route("/shop/toggle-status", methods=["POST"])
-@auth_required
-@role_required(["vendor"])
 def toggle_shop_status():
     user = request.user
     data = request.get_json()

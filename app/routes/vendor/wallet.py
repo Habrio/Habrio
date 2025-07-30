@@ -5,13 +5,11 @@ from models import db
 from models.wallet import VendorWallet, VendorWalletTransaction
 from models.vendor import VendorPayoutBank
 from app.services.vendor.wallet import adjust_vendor_balance, InsufficientFunds
-from app.utils import auth_required, role_required, transactional, error, internal_error_response
+from app.utils import transactional, error, internal_error_response
 from . import vendor_bp
 
 
 @vendor_bp.route("/wallet", methods=["GET"])
-@auth_required
-@role_required(["vendor"])
 def get_vendor_wallet():
     user = request.user
     wallet = VendorWallet.query.filter_by(user_phone=user.phone).first()
@@ -26,8 +24,6 @@ def get_vendor_wallet():
 
 
 @vendor_bp.route("/wallet/history", methods=["GET"])
-@auth_required
-@role_required(["vendor"])
 def get_vendor_wallet_history():
     txns = (
         VendorWalletTransaction.query.filter_by(user_phone=request.phone)
@@ -40,8 +36,6 @@ def get_vendor_wallet_history():
 
 
 @vendor_bp.route("/wallet/credit", methods=["POST"])
-@auth_required
-@role_required(["vendor"])
 def credit_vendor_wallet():
     user = request.user
     data = request.get_json()
@@ -67,8 +61,6 @@ def credit_vendor_wallet():
 
 
 @vendor_bp.route("/wallet/debit", methods=["POST"])
-@auth_required
-@role_required(["vendor"])
 def debit_vendor_wallet():
     user = request.user
     data = request.get_json()
@@ -92,8 +84,6 @@ def debit_vendor_wallet():
 
 
 @vendor_bp.route("/wallet/withdraw", methods=["POST"])
-@auth_required
-@role_required(["vendor"])
 def withdraw_vendor_wallet():
     user = request.user
     data = request.get_json()

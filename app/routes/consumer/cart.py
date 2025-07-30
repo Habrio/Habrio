@@ -3,13 +3,11 @@ from models import db
 from models.cart import CartItem
 from models.item import Item
 from decimal import Decimal
-from app.utils import auth_required, role_required, transactional, error, internal_error_response
+from app.utils import transactional, error, internal_error_response
 from . import consumer_bp
 
 
 @consumer_bp.route("/cart/add", methods=["POST"])
-@auth_required
-@role_required("consumer")
 def add_to_cart():
     data = request.get_json()
     phone = request.phone
@@ -45,8 +43,6 @@ def add_to_cart():
 
 
 @consumer_bp.route("/cart/update", methods=["POST"])
-@auth_required
-@role_required("consumer")
 def update_cart_quantity():
     data = request.get_json()
     phone = request.phone
@@ -70,8 +66,6 @@ def update_cart_quantity():
 
 
 @consumer_bp.route("/cart/view", methods=["GET"])
-@auth_required
-@role_required("consumer")
 def view_cart():
     phone = request.phone
     items = CartItem.query.filter_by(user_phone=phone).all()
@@ -113,8 +107,6 @@ def view_cart():
 
 
 @consumer_bp.route("/cart/remove", methods=["POST"])
-@auth_required
-@role_required("consumer")
 def remove_item():
     data = request.get_json()
     phone = request.phone
@@ -132,8 +124,6 @@ def remove_item():
 
 
 @consumer_bp.route("/cart/clear", methods=["POST"])
-@auth_required
-@role_required("consumer")
 def clear_cart():
     phone = request.phone
     CartItem.query.filter_by(user_phone=phone).delete()

@@ -13,7 +13,7 @@ from models.order import (
 )
 from app.services.consumer.wallet import adjust_consumer_balance, InsufficientFunds
 from app.services.vendor.wallet import adjust_vendor_balance
-from app.utils import auth_required, role_required, transactional, error, internal_error_response
+from app.utils import role_required, transactional, error, internal_error_response
 from . import vendor_bp
 from app.services.vendor.orders import (
     OrderValidationError,
@@ -26,8 +26,6 @@ from app.services.vendor.orders import (
 
 
 @vendor_bp.route("/orders", methods=["GET"])
-@auth_required
-@role_required("vendor")
 def get_shop_orders():
     user = request.user
     shop = Shop.query.filter_by(phone=user.phone).first()
@@ -63,7 +61,6 @@ def get_shop_orders():
 
 
 @vendor_bp.route("/orders/<int:order_id>/status", methods=["POST"])
-@auth_required
 @role_required("vendor:deliver_order")
 def update_order_status(order_id):
     user = request.user
@@ -91,7 +88,6 @@ def update_order_status(order_id):
 
 
 @vendor_bp.route("/orders/<int:order_id>/modify", methods=["POST"])
-@auth_required
 @role_required("vendor:modify_order")
 def modify_order_item(order_id):
     user = request.user
@@ -134,7 +130,6 @@ def modify_order_item(order_id):
 
 
 @vendor_bp.route("/orders/<int:order_id>/cancel", methods=["POST"])
-@auth_required
 @role_required("vendor:cancel_order_vendor")
 def cancel_order_vendor(order_id):
     user = request.user
@@ -157,7 +152,6 @@ def cancel_order_vendor(order_id):
 
 
 @vendor_bp.route("/orders/<int:order_id>/message", methods=["POST"])
-@auth_required
 @role_required("vendor")
 def send_order_message_vendor(order_id):
     user = request.user
@@ -180,7 +174,6 @@ def send_order_message_vendor(order_id):
 
 
 @vendor_bp.route("/orders/<int:order_id>/messages", methods=["GET"])
-@auth_required
 @role_required("vendor")
 def get_order_messages_vendor(order_id):
     user = request.user
@@ -194,7 +187,6 @@ def get_order_messages_vendor(order_id):
 
 
 @vendor_bp.route("/orders/issues", methods=["GET"])
-@auth_required
 @role_required("vendor")
 def get_order_issues():
     user = request.user
@@ -218,7 +210,6 @@ def get_order_issues():
 
 
 @vendor_bp.route("/orders/<int:order_id>/return/accept", methods=["POST"])
-@auth_required
 @role_required("vendor")
 def accept_return(order_id):
     user = request.user
@@ -252,7 +243,6 @@ def accept_return(order_id):
 
 
 @vendor_bp.route("/orders/<int:order_id>/return/complete", methods=["POST"])
-@auth_required
 @role_required("vendor")
 def complete_return(order_id):
     user = request.user
@@ -276,7 +266,6 @@ def complete_return(order_id):
 
 
 @vendor_bp.route("/orders/<int:order_id>/return/initiate", methods=["POST"])
-@auth_required
 @role_required("vendor")
 def vendor_initiate_return(order_id):
     user = request.user

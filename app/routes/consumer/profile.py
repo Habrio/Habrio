@@ -1,13 +1,11 @@
 from flask import request, jsonify
 from models import db
 from models.user import ConsumerProfile
-from app.utils import auth_required, role_required, transactional, error, internal_error_response
+from app.utils import transactional, error, internal_error_response
 from . import consumer_bp
 
 
 @consumer_bp.route("/onboarding", methods=["POST"])
-@auth_required
-@role_required(["consumer"])
 def consumer_onboarding():
     user = request.user
     if not user or not user.basic_onboarding_done:
@@ -39,8 +37,6 @@ def consumer_onboarding():
 
 
 @consumer_bp.route("/profile/me", methods=["GET"])
-@auth_required
-@role_required(["consumer"])
 def get_consumer_profile():
     user = request.user
     if not user:
@@ -53,8 +49,6 @@ def get_consumer_profile():
 
 
 @consumer_bp.route("/profile/edit", methods=["POST"])
-@auth_required
-@role_required(["consumer"])
 def edit_consumer_profile():
     user = request.user
     profile = ConsumerProfile.query.filter_by(user_phone=user.phone).first()

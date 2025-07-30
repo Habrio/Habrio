@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from . import vendor_bp
-from app.utils import auth_required, role_required, transactional, error, internal_error_response
+from app.utils import transactional, error, internal_error_response
 from app.utils.validation import validate_schema
 from app.schemas.vendor import VendorProfileRequest, VendorDocumentRequest, PayoutSetupRequest
 from app.services.vendor.profile import (
@@ -12,8 +12,6 @@ from app.services.vendor.profile import (
 
 
 @vendor_bp.route("/profile", methods=["POST"])
-@auth_required
-@role_required(["vendor"])
 @validate_schema(VendorProfileRequest)
 def vendor_profile_setup():
     user = request.user
@@ -29,8 +27,6 @@ def vendor_profile_setup():
 
 
 @vendor_bp.route("/upload-document", methods=["POST"])
-@auth_required
-@role_required(["vendor"])
 @validate_schema(VendorDocumentRequest)
 def upload_vendor_document():
     user = request.user
@@ -48,8 +44,6 @@ def upload_vendor_document():
 
 
 @vendor_bp.route("/payout/setup", methods=["POST"])
-@auth_required
-@role_required(["vendor"])
 @validate_schema(PayoutSetupRequest)
 def setup_payout_bank():
     user = request.user
