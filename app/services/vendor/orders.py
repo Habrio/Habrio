@@ -8,7 +8,8 @@ from models.order import (
     OrderMessage,
     OrderReturn,
 )
-from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance
+from app.services.consumer.wallet import adjust_consumer_balance
+from app.services.vendor.wallet import adjust_vendor_balance
 
 
 class OrderValidationError(Exception):

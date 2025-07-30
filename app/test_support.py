@@ -3,7 +3,8 @@ from app.utils.responses import ok, error
 from app.utils import auth_required
 from app.utils import role_required
 import logging
-from app.services.wallet_ops import adjust_consumer_balance, adjust_vendor_balance, InsufficientFunds
+from app.services.consumer.wallet import adjust_consumer_balance, InsufficientFunds
+from app.services.vendor.wallet import adjust_vendor_balance
 from app.utils import create_access_token, create_refresh_token
 from app.services.consumer.orders import (
     confirm_order_service,

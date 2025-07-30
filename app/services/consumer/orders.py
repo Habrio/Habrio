@@ -9,7 +9,7 @@ from models.order import (
 )
 from models.cart import CartItem
 from models.item import Item
-from app.services.wallet_ops import adjust_consumer_balance
+from app.services.consumer.wallet import adjust_consumer_balance
 
 
 class ValidationError(Exception):
