@@ -39,6 +39,11 @@ Set `ALLOW_DB_MIGRATIONS=true` in production to permit upgrades or stamping.
 * Access token (lifetime ≈ 15 min) – send via `Authorization: Bearer <token>`.
 * Refresh token (lifetime ≈ 30 days) – POST to `/api/v1/auth/refresh` to obtain new pair.
 * Tokens are signed HS256 with `JWT_SECRET`.
+* Old secrets can be supplied via `JWT_PREVIOUS_SECRETS` (comma-separated) to
+  allow graceful key rotation. When rotating, place the former secret in this
+  list so older tokens remain valid until they expire.
+* User roles are always validated against the database on each request, so
+  tampering with the `role` claim in a token will not grant extra privileges.
 ### Role-scoped permissions (Step 9)
 Decorators now accept `role:action` scopes, e.g.:
   @role_required("vendor:modify_order")

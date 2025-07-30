@@ -1,5 +1,7 @@
 import importlib, pytest
 from app.utils import create_access_token
+from models.user import UserProfile
+from models import db
 
 
 def _load(monkeypatch):
@@ -10,6 +12,9 @@ def _load(monkeypatch):
 
 def _token(app, phone, role):
     with app.app_context():
+        if not UserProfile.query.filter_by(phone=phone).first():
+            db.session.add(UserProfile(phone=phone, role=role))
+            db.session.commit()
         return create_access_token(phone, role)
 
 

@@ -22,10 +22,9 @@ def auth_required(func):
         g.role = payload.get("role")
         request.phone = g.phone
         user = UserProfile.query.filter_by(phone=g.phone).first()
-        if user:
-            request.user = user
-        else:
-            request.user = type("User", (), {"phone": g.phone, "role": g.role})
+        if not user:
+            return error("Invalid user", status=401)
+        request.user = user
         return func(*args, **kwargs)
 
     return wrapper

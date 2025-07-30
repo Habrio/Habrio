@@ -10,6 +10,7 @@ class BaseConfig:
     LOGIN_LIMIT_PER_IP = os.getenv("LOGIN_LIMIT_PER_IP", "10 per 30 minutes")
     ORDER_LIMIT_PER_IP = os.getenv("ORDER_LIMIT_PER_IP", "20 per hour")
     JWT_SECRET = os.getenv("JWT_SECRET", "dev-insecure-jwt-key")
+    JWT_PREVIOUS_SECRETS = [s for s in os.getenv("JWT_PREVIOUS_SECRETS", "").split(",") if s]
     ACCESS_TOKEN_LIFETIME_MIN = int(os.getenv("ACCESS_TOKEN_LIFETIME_MIN", 15))
     REFRESH_TOKEN_LIFETIME_DAYS = int(os.getenv("REFRESH_TOKEN_LIFETIME_DAYS", 30))
     TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
