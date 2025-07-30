@@ -49,3 +49,30 @@ def test_refresh_returns_new_access(monkeypatch):
         new_access = r.get_json()["access_token"]
         r2 = c.get("/api/v1/test_support/__ok", headers={"Authorization": f"Bearer {new_access}"})
         assert r2.status_code == 200
+
+
+def test_old_secret_allows_decode(monkeypatch):
+    old = "oldsecret"
+    new = "newsecret"
+    monkeypatch.setenv("JWT_SECRET", new)
+    monkeypatch.setenv("JWT_PREVIOUS_SECRETS", old)
+    import importlib as _imp
+    import app.config as cfg
+    _imp.reload(cfg)
+    import app as app_pkg
+    _imp.reload(app_pkg)
+    app = _load(monkeypatch)
+    with app.app_context():
+        tok = jwt.encode(
+            {
+                "sub": "x",
+                "role": "consumer",
+                "type": "access",
+                "exp": dt.datetime.utcnow() + dt.timedelta(minutes=1),
+            },
+            old,
+            algorithm="HS256",
+        )
+        c = app.test_client()
+        r = c.get("/api/v1/test_support/__ok", headers={"Authorization": f"Bearer {tok}"})
+        assert r.status_code == 200

@@ -8,6 +8,14 @@ def _secret() -> str:
     return current_app.config["JWT_SECRET"]
 
 
+def _all_secrets() -> list:
+    cfg = current_app.config
+    secrets = [cfg["JWT_SECRET"]]
+    prev = cfg.get("JWT_PREVIOUS_SECRETS") or []
+    secrets.extend(prev)
+    return secrets
+
+
 def _utcnow():
     return dt.datetime.utcnow()
 
@@ -47,12 +55,19 @@ class TokenError(Exception):
 
 
 def decode_token(token: str, expected_type: str = "access") -> Dict:
-    try:
-        data = jwt.decode(token, _secret(), algorithms=["HS256"])
-    except jwt.ExpiredSignatureError:
-        raise TokenError("token expired")
-    except jwt.InvalidTokenError:
-        raise TokenError("invalid token")
+    last_error = TokenError("invalid token")
+    for secret in _all_secrets():
+        try:
+            data = jwt.decode(token, secret, algorithms=["HS256"])
+            break
+        except jwt.ExpiredSignatureError:
+            raise TokenError("token expired")
+        except jwt.InvalidSignatureError:
+            last_error = TokenError("invalid token")
+        except jwt.InvalidTokenError:
+            last_error = TokenError("invalid token")
+    else:
+        raise last_error
 
     if data.get("type") != expected_type:
         raise TokenError(f"expected {expected_type} token")
