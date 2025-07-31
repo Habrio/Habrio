@@ -11,6 +11,7 @@ import logging
 from app.utils import internal_error_response
 from app.utils import error, transactional
 from app.utils.validation import validate_schema
+from app.tasks.notifications import send_whatsapp_message_task
 from app.schemas.auth import SendOTPRequest, VerifyOTPRequest
 from app.utils import (
     create_access_token,
@@ -126,6 +127,10 @@ def send_otp_handler():
         return internal_error_response()
 
     logging.info("[DEBUG] OTP for %s is %s", phone, otp_code)
+    if current_app.config.get("TESTING"):
+        send_whatsapp_message_task(phone, f"Your OTP is {otp_code}")
+    else:
+        send_whatsapp_message_task.delay(phone, f"Your OTP is {otp_code}")
 
     return jsonify({"status": "success", "message": "OTP sent"}), 200
 

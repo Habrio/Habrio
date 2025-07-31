@@ -95,6 +95,10 @@ Example vendor routes:
 
 If `OPENAI_API_KEY` is provided in the environment, the service exposes `/api/v1/agent/query` for chat-based assistance. The endpoint requires authentication and returns the assistant's answer along with suggestions.
 
+### Background workers
+
+Celery with Redis powers asynchronous tasks for heavy operations such as sending notifications or processing item uploads. Set `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` to point at your Redis instance. Workers can be started with `celery -A celery_app worker -l info`.
+
 ## Docker
 
 The application can be run in a container using the included `Dockerfile`.

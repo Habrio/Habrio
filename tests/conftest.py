@@ -13,6 +13,7 @@ def app_instance():
     os.environ.setdefault('TWILIO_ACCOUNT_SID', 'dummy')
     os.environ.setdefault('TWILIO_AUTH_TOKEN', 'dummy')
     os.environ.setdefault('TWILIO_WHATSAPP_FROM', 'dummy')
+    os.environ.setdefault('CELERY_TASK_ALWAYS_EAGER', '1')
     from app import create_app
     app = create_app()
     app.config.update(
