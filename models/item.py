@@ -1,12 +1,12 @@
 # --- models/item.py ---
-from models import db
+from models import db, BIGINT
 from datetime import datetime
 
 class Item(db.Model):
     __tablename__ = "item"
 
-    id = db.Column(db.Integer, primary_key=True)
-    shop_id = db.Column(db.Integer, db.ForeignKey("shop.id"), nullable=False)
+    id = db.Column(BIGINT, primary_key=True)
+    shop_id = db.Column(BIGINT, db.ForeignKey("shop.id"), nullable=False)
 
     # Core details
     title = db.Column(db.String(100), nullable=False)             # Replaces 'name'
