@@ -1,5 +1,4 @@
 import logging
-import pandas as pd
 from celery import shared_task
 from models import db
 from models.item import Item
@@ -12,6 +11,7 @@ logger = logging.getLogger(__name__)
 def process_bulk_items_task(self, shop_id: int, dataframe_dict: dict) -> int:
     """Create items from uploaded DataFrame."""
     try:
+        import pandas as pd  # Imported lazily to avoid dependency issues during CLI operations
         df = pd.DataFrame.from_dict(dataframe_dict)
     except Exception as exc:
         logger.error("Bulk upload dataframe error: %s", exc)
