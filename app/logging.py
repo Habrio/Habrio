@@ -2,6 +2,7 @@ import logging
 import json
 import os
 from typing import Any, Dict
+from opentelemetry.trace import get_current_span
 
 
 SENSITIVE_KEYS = {"otp", "password", "token", "email", "phone_number", "phone"}
@@ -22,6 +23,25 @@ class RequestIdFilter(logging.Filter):
             record.request_id = current_request_id()
         except Exception:
             record.request_id = "n/a"
+        return True
+
+
+def current_trace_ids():
+    try:
+        span = get_current_span()
+        ctx = span.get_span_context() if span else None
+        if not ctx or not ctx.is_valid:
+            return "n/a", "n/a"
+        return format(ctx.trace_id, "032x"), format(ctx.span_id, "016x")
+    except Exception:
+        return "n/a", "n/a"
+
+
+class TraceIdFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        trace_id, span_id = current_trace_ids()
+        record.trace_id = trace_id
+        record.span_id = span_id
         return True
 
 
@@ -51,6 +71,8 @@ class JsonFormatter(logging.Formatter):
             "level": record.levelname,
             "name": record.name,
             "request_id": getattr(record, "request_id", "n/a"),
+            "trace_id": getattr(record, "trace_id", "n/a"),
+            "span_id": getattr(record, "span_id", "n/a"),
         }
         if isinstance(record.msg, dict):
             data = record.msg
@@ -68,6 +90,7 @@ def configure_logging(app) -> None:
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter(datefmt=datefmt))
     handler.addFilter(RequestIdFilter())
+    handler.addFilter(TraceIdFilter())
     handler.addFilter(MaskingFilter())
 
     app.logger.handlers.clear()

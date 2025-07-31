@@ -99,6 +99,23 @@ If `OPENAI_API_KEY` is provided in the environment, the service exposes `/api/v1
 
 Celery with Redis powers asynchronous tasks for heavy operations such as sending notifications or processing item uploads. Set `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` to point at your Redis instance. Workers can be started with `celery -A celery_app worker -l info`.
 
+## Tracing
+
+The service uses OpenTelemetry to trace HTTP requests, database queries and outbound API calls.
+Traces are exported via OTLP and can be viewed using Jaeger.
+
+### Local Jaeger
+
+Run Jaeger in Docker and point the app to it:
+
+```bash
+docker run -d --name jaeger \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  -p 16686:16686 -p 4317:4317 jaegertracing/all-in-one
+```
+
+Start the Flask app with `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` and visit `http://localhost:16686` to browse traces.
+
 ## Docker
 
 The application can be run in a container using the included `Dockerfile`.

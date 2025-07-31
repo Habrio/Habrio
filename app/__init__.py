@@ -16,6 +16,9 @@ import extensions
 import logging
 import os
 import uuid
+from opentelemetry.trace import get_current_span
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from app.telemetry import init_tracing
 from models import db
 
 
@@ -127,14 +130,31 @@ def create_app(config_object=None):
         resp.headers.setdefault("Referrer-Policy", "no-referrer")
         existing = resp.headers.get("Access-Control-Expose-Headers", "")
         if "X-Request-ID" not in existing:
-            resp.headers["Access-Control-Expose-Headers"] = (
+            existing = (
                 existing
                 + ("," if existing and not existing.endswith(",") else "")
                 + "X-Request-ID"
             ).strip(",")
+        if "traceparent" not in existing:
+            existing = (
+                existing
+                + ("," if existing and not existing.endswith(",") else "")
+                + "traceparent"
+            ).strip(",")
+        resp.headers["Access-Control-Expose-Headers"] = existing
+        return resp
+
+    @app.after_request
+    def _add_trace_header(resp):
+        carrier = {}
+        TraceContextTextMapPropagator().inject(carrier)
+        tp = carrier.get("traceparent")
+        if tp:
+            resp.headers["traceparent"] = tp
         return resp
 
     db.init_app(app)
+    init_tracing(app)
     if app.config.get("DEBUG") or app.config.get("TESTING"):
         with app.app_context():
             db.create_all()
