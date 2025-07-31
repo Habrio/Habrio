@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+scrape_configs:
+  - job_name: 'habrio'
+    static_configs:
+      - targets: ['web:80']
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+rule_files:
+  - 'alert_rules.yml'
