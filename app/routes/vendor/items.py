@@ -1,6 +1,5 @@
 from flask import request, jsonify, current_app
 from datetime import datetime
-import pandas as pd
 from werkzeug.utils import secure_filename
 from models.item import Item
 from models.shop import Shop
@@ -129,6 +128,7 @@ def bulk_upload_items():
     filename = secure_filename(file.filename)
     ext = filename.split('.')[-1].lower()
     try:
+        import pandas as pd  # Imported lazily to avoid dependency issues during CLI operations
         if ext == "csv":
             df = pd.read_csv(file)
         elif ext in ["xls", "xlsx"]:
