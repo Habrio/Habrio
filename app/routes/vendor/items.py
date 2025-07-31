@@ -1,4 +1,4 @@
-from flask import request, jsonify
+from flask import request, jsonify, current_app
 from datetime import datetime
 import pandas as pd
 from werkzeug.utils import secure_filename
@@ -6,6 +6,7 @@ from models.item import Item
 from models.shop import Shop
 from models import db
 from app.utils import transactional, error, internal_error_response
+from app.tasks.vendor import process_bulk_items_task
 from app.utils.validation import validate_schema
 from app.schemas.vendor import AddItemRequest
 from . import vendor_bp
@@ -142,35 +143,8 @@ def bulk_upload_items():
     shop = Shop.query.filter_by(phone=user.phone).first()
     if not shop:
         return error("Shop not found", status=404)
-    created = 0
-    for _, row in df.iterrows():
-        try:
-            item = Item(
-                shop_id=shop.id,
-                title=row["title"],
-                brand=row.get("brand"),
-                price=row["price"],
-                mrp=row.get("mrp"),
-                discount=row.get("discount"),
-                quantity_in_stock=row.get("quantity_in_stock", 0),
-                unit=row.get("unit"),
-                pack_size=row.get("pack_size"),
-                category=row.get("category"),
-                tags=row.get("tags"),
-                sku=row.get("sku"),
-                expiry_date=row.get("expiry_date"),
-                image_url=row.get("image_url"),
-                description=row.get("description", ""),
-                is_available=True,
-                is_active=True
-            )
-            db.session.add(item)
-            created += 1
-        except Exception:
-            continue
-    try:
-        with transactional("Failed to bulk upload items"):
-            pass
-    except Exception:
-        return internal_error_response()
-    return jsonify({"status": "success", "message": f"{created} items uploaded"}), 200
+    if current_app.config.get("TESTING"):
+        process_bulk_items_task(shop.id, df.to_dict())
+        return jsonify({"status": "accepted", "task_id": "sync"}), 202
+    task = process_bulk_items_task.delay(shop.id, df.to_dict())
+    return jsonify({"status": "accepted", "task_id": task.id}), 202

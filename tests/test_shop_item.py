@@ -216,8 +216,8 @@ def test_bulk_upload_items(client, app):
     csv_io.write(df.to_csv(index=False).encode())
     csv_io.seek(0)
     resp = client.post('/api/v1/vendor/item/bulk-upload', data={'file': (csv_io, 'items.csv')}, headers={'Authorization': f'Bearer {token}'}, content_type='multipart/form-data')
-    assert resp.status_code == 200
-    assert '2 items uploaded' in resp.get_json()['message']
+    assert resp.status_code == 202
+    assert 'task_id' in resp.get_json()
     with app.app_context():
         shop = Shop.query.filter_by(phone=phone).first()
         assert Item.query.filter_by(shop_id=shop.id).count() == 2
