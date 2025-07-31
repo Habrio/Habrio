@@ -20,4 +20,9 @@ flasgger>=0.9.7
 prometheus-flask-exporter>=0.23.0
 celery
 redis
+opentelemetry-sdk
+opentelemetry-instrumentation-flask
+opentelemetry-instrumentation-sqlalchemy
+opentelemetry-instrumentation-requests
+opentelemetry-exporter-otlp
 
