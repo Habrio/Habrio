@@ -143,3 +143,21 @@ A `docker-compose.yml` is included for local development with PostgreSQL.
 GitHub Actions will run the test suite on every push and pull request to `main`.
 The workflow installs dependencies, runs `pytest`, and ensures the Docker image
 builds successfully.
+
+## Monitoring with Prometheus
+
+A basic Prometheus configuration is provided in `monitoring/prometheus.yml` with
+Alertmanager rules defined in `monitoring/alert_rules.yml`. To run Prometheus
+locally and scrape the application metrics:
+
+```bash
+docker run --network=host \
+  -v $(pwd)/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml \
+  -v $(pwd)/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml \
+  prom/prometheus
+```
+
+Navigate to `http://localhost:9090` to explore the metrics dashboard. The
+`/metrics` endpoint of the Flask app exposes request latency histograms,
+database query durations and error counters which feed the provided alerting
+rules.

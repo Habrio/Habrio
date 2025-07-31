@@ -10,6 +10,7 @@ from app.version import API_PREFIX
 from flask_cors import CORS
 from flasgger import Swagger
 from prometheus_flask_exporter import PrometheusMetrics
+from app import metrics as metrics_module
 from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
 import extensions
@@ -154,6 +155,7 @@ def create_app(config_object=None):
         return resp
 
     db.init_app(app)
+    metrics_module.init_app(app)
     init_tracing(app)
     if app.config.get("DEBUG") or app.config.get("TESTING"):
         with app.app_context():
