@@ -161,3 +161,18 @@ Navigate to `http://localhost:9090` to explore the metrics dashboard. The
 `/metrics` endpoint of the Flask app exposes request latency histograms,
 database query durations and error counters which feed the provided alerting
 rules.
+
+## Dependency Management
+
+All runtime dependencies are pinned to exact versions in `requirements.txt` and
+`pyproject.toml`. Continuous integration installs these exact versions and runs
+`pip-audit` to check for known vulnerabilities. The workflow fails if any
+issues are reported.
+
+To update a package:
+1. Create a new branch and bump the version in both files.
+2. Run `pip-audit` locally and ensure the audit passes.
+3. Submit a pull request. CI will re-run `pip-audit` and the test suite.
+
+Security advisories should be addressed within a week. Subscribe to relevant
+package feeds or GitHub alerts so that new CVEs are reviewed promptly.
