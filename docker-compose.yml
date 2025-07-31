@@ -4,6 +4,9 @@ services:
     build: .
     ports:
       - "80:80"
+    read_only: true
+    tmpfs:
+      - /tmp
     environment:
       - APP_ENV=production
       - SECRET_KEY=changeme

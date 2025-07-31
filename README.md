@@ -118,7 +118,10 @@ Start the Flask app with `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317` and
 
 ## Docker
 
-The application can be run in a container using the included `Dockerfile`.
+The application can be run in a container using the included `Dockerfile`. It
+uses a multi-stage build based on `python:3.12-slim` and installs all
+dependencies in a builder stage. The runtime image runs as an unprivileged
+`appuser` account and expects a read-only root filesystem.
 
 ### Build
 ```bash
@@ -128,13 +131,17 @@ docker build -t habrio .
 ### Run
 ```bash
 docker run -p 80:80 \
+  --read-only \
+  --tmpfs /tmp \
   -e SECRET_KEY=changeme \
   -e DATABASE_URL=sqlite:///data.db \
   habrio
 ```
 
 Set `APP_ENV=production` by default in the image. Provide `SECRET_KEY` and
-`DATABASE_URL` at runtime via environment variables or Docker secrets.
+`DATABASE_URL` at runtime via environment variables or Docker secrets. When
+running with Docker Compose the web service is configured with `read_only: true`
+and a temporary filesystem mounted at `/tmp`.
 
 A `docker-compose.yml` is included for local development with PostgreSQL.
 
@@ -142,7 +149,9 @@ A `docker-compose.yml` is included for local development with PostgreSQL.
 
 GitHub Actions runs the test suite on every push and pull request to `main`.
 The workflow installs dependencies, executes the tests with `pytest-cov`, and
-fails if overall coverage drops below 90%.
+fails if overall coverage drops below 90%. A Docker image is built for each
+run and scanned with [Trivy](https://github.com/aquasecurity/trivy) to detect
+critical or high severity vulnerabilities.
 
 ## Monitoring with Prometheus
 
