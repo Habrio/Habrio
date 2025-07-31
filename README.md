@@ -140,9 +140,9 @@ A `docker-compose.yml` is included for local development with PostgreSQL.
 
 ## Continuous Integration
 
-GitHub Actions will run the test suite on every push and pull request to `main`.
-The workflow installs dependencies, runs `pytest`, and ensures the Docker image
-builds successfully.
+GitHub Actions runs the test suite on every push and pull request to `main`.
+The workflow installs dependencies, executes the tests with `pytest-cov`, and
+fails if overall coverage drops below 90%.
 
 ## Monitoring with Prometheus
 
