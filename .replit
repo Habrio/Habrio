@@ -3,7 +3,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["SDL2", "SDL2_image", "SDL2_mixer", "SDL2_ttf", "bash", "fontconfig", "freetype", "glibcLocales", "libjpeg", "libpng", "pkg-config", "portmidi", "postgresql", "python312Packages.pytest_7", "sqlite-interactive"]
+packages = ["SDL2", "SDL2_image", "SDL2_mixer", "SDL2_ttf", "bash", "fontconfig", "freetype", "glibcLocales", "libjpeg", "libpng", "libxcrypt", "nvidia-docker", "pkg-config", "portmidi", "postgresql", "python312Packages.pytest_7", "sqlite-interactive", "tree"]
 
 [unitTest]
 language = "python3"
