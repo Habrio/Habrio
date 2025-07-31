@@ -1,4 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import BigInteger, Integer
+
+# Use BigInteger in production but fall back to Integer for SQLite
+BIGINT = BigInteger().with_variant(Integer, "sqlite")
 
 db = SQLAlchemy()
 

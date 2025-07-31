@@ -1,11 +1,12 @@
 from sqlalchemy import Column, Integer, String, Numeric, Text, DateTime
+from models import BIGINT
 from sqlalchemy.sql import func
 from models import db
 
 
 class ConsumerWallet(db.Model):
     __tablename__ = "consumer_wallet"
-    id = Column(Integer, primary_key=True)
+    id = Column(BIGINT, primary_key=True)
     user_phone = Column(String(15), nullable=False, unique=True)
     balance = Column(Numeric(10, 2), default=0.00)
     created_at = Column(DateTime, default=func.now())
@@ -14,7 +15,7 @@ class ConsumerWallet(db.Model):
 
 class WalletTransaction(db.Model):
     __tablename__ = "wallet_transaction"
-    id = Column(Integer, primary_key=True)
+    id = Column(BIGINT, primary_key=True)
     user_phone = Column(String(15), nullable=False)
     amount = Column(Numeric(10, 2), nullable=False)
     type = Column(String(20), nullable=False)  # e.g. debit, credit, refund
@@ -37,7 +38,7 @@ class WalletTransaction(db.Model):
 
 class VendorWallet(db.Model):
     __tablename__ = "vendor_wallet"
-    id = Column(Integer, primary_key=True)
+    id = Column(BIGINT, primary_key=True)
     user_phone = Column(String(15), nullable=False, unique=True)
     balance = Column(Numeric(10, 2), default=0.00)
     created_at = Column(DateTime, default=func.now())
@@ -46,7 +47,7 @@ class VendorWallet(db.Model):
 
 class VendorWalletTransaction(db.Model):
     __tablename__ = "vendor_wallet_transaction"
-    id = Column(Integer, primary_key=True)
+    id = Column(BIGINT, primary_key=True)
     user_phone = Column(String(15), nullable=False)
     amount = Column(Numeric(10, 2), nullable=False)
     type = Column(String(20), nullable=False)  # credit, debit

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey
+from models import BIGINT
 from sqlalchemy.sql import func
 from models import db
 from datetime import datetime
@@ -6,9 +7,12 @@ from datetime import datetime
 
 class Order(db.Model):
     __tablename__ = "order"
-    id = Column(Integer, primary_key=True)
+    __table_args__ = (
+        db.Index("ix_order_shop_status", "shop_id", "status"),
+    )
+    id = Column(BIGINT, primary_key=True)
     user_phone = Column(String(15), ForeignKey("user_profile.phone"), nullable=False)
-    shop_id = Column(Integer, ForeignKey("shop.id"), nullable=False)
+    shop_id = Column(BIGINT, ForeignKey("shop.id"), nullable=False)
     status = Column(String(50), default="pending")  # pending, accepted, modified, confirmed, cancelled, delivered
     payment_mode = Column(String(10), nullable=False)  # wallet or cash
     payment_status = Column(String(20), default="unpaid")  # unpaid, paid, refunded, partially_refunded
@@ -25,9 +29,9 @@ class Order(db.Model):
 
 class OrderItem(db.Model):
     __tablename__ = "order_item"
-    id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey("order.id"), nullable=False)
-    item_id = db.Column(db.Integer, nullable=False)
+    id = db.Column(BIGINT, primary_key=True)
+    order_id = db.Column(BIGINT, db.ForeignKey("order.id"), nullable=False)
+    item_id = db.Column(BIGINT, nullable=False)
 
     # Add these missing fields:
     name = db.Column(db.String(255))
@@ -50,8 +54,8 @@ class OrderItem(db.Model):
 
 class OrderMessage(db.Model):
     __tablename__ = "order_messages"
-    id = Column(Integer, primary_key=True)
-    order_id = Column(Integer, ForeignKey("order.id"), nullable=False)
+    id = Column(BIGINT, primary_key=True)
+    order_id = Column(BIGINT, ForeignKey("order.id"), nullable=False)
     sender_phone = Column(String(15), nullable=False)
     message = Column(Text, nullable=False)
     timestamp = Column(DateTime, default=func.now())
@@ -68,8 +72,8 @@ class OrderMessage(db.Model):
 
 class OrderStatusLog(db.Model):
     __tablename__ = "order_status_log"
-    id = Column(Integer, primary_key=True)
-    order_id = Column(Integer, ForeignKey("order.id"), nullable=False)
+    id = Column(BIGINT, primary_key=True)
+    order_id = Column(BIGINT, ForeignKey("order.id"), nullable=False)
     status = Column(String(30), nullable=False)
     updated_by = Column(String(15), nullable=False)
     timestamp = Column(DateTime, default=func.now())
@@ -85,8 +89,8 @@ class OrderStatusLog(db.Model):
 
 class OrderActionLog(db.Model):
     __tablename__ = "order_action_log"
-    id = Column(Integer, primary_key=True)
-    order_id = Column(Integer, ForeignKey("order.id"), nullable=False)
+    id = Column(BIGINT, primary_key=True)
+    order_id = Column(BIGINT, ForeignKey("order.id"), nullable=False)
     action_type = Column(String(50), nullable=False)
     actor_phone = Column(String(15), nullable=False)
     details = Column(Text, nullable=True)
@@ -95,9 +99,8 @@ class OrderActionLog(db.Model):
 
 class OrderRating(db.Model):
     __tablename__ = "order_rating"
-
-    id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey("order.id"), nullable=False)
+    id = db.Column(BIGINT, primary_key=True)
+    order_id = db.Column(BIGINT, db.ForeignKey("order.id"), nullable=False)
     user_phone = db.Column(db.String(15), nullable=False)
     rating = db.Column(db.Integer, nullable=False)
     review = db.Column(db.String(250))
@@ -113,8 +116,8 @@ class OrderRating(db.Model):
 
 class OrderIssue(db.Model):
     __tablename__ = "order_issue"
-    id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey("order.id"), nullable=False)
+    id = db.Column(BIGINT, primary_key=True)
+    order_id = db.Column(BIGINT, db.ForeignKey("order.id"), nullable=False)
     user_phone = db.Column(db.String, nullable=False)
     issue_type = db.Column(db.String(50), nullable=False)  # e.g., "damaged_item", "missing_item"
     description = db.Column(db.Text, nullable=True)
@@ -136,10 +139,9 @@ class OrderIssue(db.Model):
 
 class OrderReturn(db.Model):
     __tablename__ = "order_return"
-
-    id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey("order.id"), nullable=False)
-    item_id = db.Column(db.Integer, db.ForeignKey("item.id"), nullable=True)  # Null for full return
+    id = db.Column(BIGINT, primary_key=True)
+    order_id = db.Column(BIGINT, db.ForeignKey("order.id"), nullable=False)
+    item_id = db.Column(BIGINT, db.ForeignKey("item.id"), nullable=True)  # Null for full return
     quantity = db.Column(db.Integer, nullable=False, default=1)
     reason = db.Column(db.String(255))
     initiated_by = db.Column(db.String(20))  # 'consumer' or 'vendor'

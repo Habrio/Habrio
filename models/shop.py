@@ -1,8 +1,8 @@
-from models import db
+from models import db, BIGINT
 from datetime import datetime
 
 class Shop(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(BIGINT, primary_key=True)
     shop_name = db.Column(db.String(100), nullable=False)         # renamed from name
     shop_type = db.Column(db.String(50), nullable=False)          # renamed from type
     society = db.Column(db.String(100), nullable=False)
@@ -30,8 +30,8 @@ class Shop(db.Model):
 class ShopHours(db.Model):
     __tablename__ = "shop_hours"
 
-    id = db.Column(db.Integer, primary_key=True)
-    shop_id = db.Column(db.Integer, db.ForeignKey("shop.id"), nullable=False)
+    id = db.Column(BIGINT, primary_key=True)
+    shop_id = db.Column(BIGINT, db.ForeignKey("shop.id"), nullable=False)
     day_of_week = db.Column(db.Integer, nullable=False)  # 0 = Monday, 6 = Sunday
     open_time = db.Column(db.Time, nullable=True)
     close_time = db.Column(db.Time, nullable=True)
@@ -46,8 +46,8 @@ class ShopHours(db.Model):
         }
 
 class ShopActionLog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    shop_id = db.Column(db.Integer, db.ForeignKey("shop.id"), nullable=False)
+    id = db.Column(BIGINT, primary_key=True)
+    shop_id = db.Column(BIGINT, db.ForeignKey("shop.id"), nullable=False)
     action = db.Column(db.String(50))  # 'opened' or 'closed'
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
