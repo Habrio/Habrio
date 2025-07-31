@@ -26,3 +26,5 @@ opentelemetry-instrumentation-sqlalchemy
 opentelemetry-instrumentation-requests
 opentelemetry-exporter-otlp
 
+pytest>=8.0
+pytest-cov>=4.1
