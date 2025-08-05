@@ -1,0 +1,68 @@
+Environment Setup and Secret Migration Guide
+===========================================
+
+This repository uses environment variables for configuration. When moving
+from Replit to GitHub Codespaces and later to a local development setup
+(such as VS Code), copy your secrets into a `.env` file located at the
+project root. The application loads this file automatically via
+`python-dotenv`.
+
+Required secrets and variables
+------------------------------
+
+General application settings:
+- `APP_ENV` – environment name (`development`, `testing`, or `production`).
+- `SECRET_KEY` – Flask secret key. Generate a random value.
+- `DATABASE_URL` – database connection string (e.g. `sqlite:///dev.db` or a
+  PostgreSQL URL).
+- `TEST_DATABASE_URL` – database URL used when running tests.
+
+JWT and session settings:
+- `JWT_SECRET` – key used to sign JWT tokens.
+- `JWT_PREVIOUS_SECRETS` – optional, comma-separated list of old JWT secrets
+  for token rotation.
+
+Third-party services:
+- `TWILIO_ACCOUNT_SID` – Twilio account SID (Twilio console).
+- `TWILIO_AUTH_TOKEN` – Twilio auth token (Twilio console).
+- `TWILIO_WHATSAPP_FROM` – WhatsApp-enabled Twilio phone number.
+- `OPENAI_API_KEY` – OpenAI API key to enable the `/agent` assistant
+  endpoints.
+
+Background tasks:
+- `CELERY_BROKER_URL` – URL to the Celery message broker (e.g. Redis).
+- `CELERY_RESULT_BACKEND` – URL for storing Celery task results.
+- `CELERY_TASK_ALWAYS_EAGER` – set to `1` to execute tasks synchronously
+  during development.
+
+Additional configuration:
+- `CORS_ALLOWED_ORIGINS`, `RATELIMIT_STORAGE_URL`, `OTP_SEND_LIMIT_PER_IP`,
+  `OTP_SEND_LIMIT_PER_PHONE`, `LOGIN_LIMIT_PER_IP`, `ORDER_LIMIT_PER_IP`,
+  `ACCESS_TOKEN_LIFETIME_MIN`, `REFRESH_TOKEN_LIFETIME_DAYS`, `LOG_LEVEL`,
+  `ALLOW_DB_MIGRATIONS` and other variables in `app/config.py` can be
+  adjusted as needed.
+
+Where to get the secrets
+------------------------
+- Generate `SECRET_KEY` and `JWT_SECRET` with
+  `python -c "import secrets; print(secrets.token_hex(32))"`.
+- Obtain Twilio credentials from the [Twilio Console](https://www.twilio.com/console).
+- Create an OpenAI key at <https://platform.openai.com/account/api-keys>.
+- Use a database service (e.g. PostgreSQL) or the provided SQLite URLs for
+  development.
+
+Migration steps
+---------------
+1. **Replit → GitHub Codespaces**
+   - In Replit, open the Secrets manager and note each key/value.
+   - In this repository, copy `.env.example` to `.env` and fill in the
+     values.
+   - Do not commit `.env`; it is ignored by Git.
+
+2. **Codespaces → Local (VS Code)**
+   - Copy the `.env` file to your local machine (or recreate it).
+   - Install dependencies: `pip install -r requirements.txt`.
+   - Ensure the database service referenced in `DATABASE_URL` is available.
+   - Run the app: `python main.py` or use Flask's CLI.
+
+Keep your `.env` file secure and never commit secrets to version control.
