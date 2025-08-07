@@ -6,12 +6,10 @@ from models.user import OTP, UserProfile
 from models import db
 import random
 from datetime import datetime, timedelta
-from twilio.rest import Client
 import logging
 from app.utils import internal_error_response
 from app.utils import error, transactional
 from app.utils.validation import validate_schema
-from app.tasks.notifications import send_whatsapp_message_task
 from app.schemas.auth import SendOTPRequest, VerifyOTPRequest
 from app.utils import (
     create_access_token,
@@ -57,39 +55,10 @@ def refresh_tokens():
         "expires_in": current_app.config["ACCESS_TOKEN_LIFETIME_MIN"] * 60,
     }), 200
 
-# --- Twilio Configuration ---
-
-def init_twilio(app):
-    sid = app.config.get("TWILIO_ACCOUNT_SID")
-    token = app.config.get("TWILIO_AUTH_TOKEN")
-    whatsapp_from = app.config.get("TWILIO_WHATSAPP_FROM")
-    if not all([sid, token, whatsapp_from]):
-        logging.warning("Twilio credentials missing; using dummy values for testing")
-        sid = sid or "dummy"
-        token = token or "dummy"
-        whatsapp_from = whatsapp_from or "dummy"
-    app.twilio_client = Client(sid, token)
-    app.config["TWILIO_WHATSAPP_FROM"] = whatsapp_from
-
-
 # --- OTP Utility ---
 
 def generate_otp():
     return str(random.randint(100000, 999999))
-
-
-def send_whatsapp_message(to, body):
-    try:
-        client = current_app.twilio_client
-        whatsapp_from = current_app.config.get("TWILIO_WHATSAPP_FROM")
-        message = client.messages.create(
-            from_=whatsapp_from,
-            to=f"whatsapp:{to}",
-            body=body
-        )
-        logging.info("[WhatsApp] ✅ Message sent. SID: %s", message.sid)
-    except Exception as e:
-        logging.error("Failed to send message: %s", e, exc_info=True)
 
 
 # --- Send OTP ---
@@ -127,10 +96,7 @@ def send_otp_handler():
         return internal_error_response()
 
     logging.info("[DEBUG] OTP for %s is %s", phone, otp_code)
-    if current_app.config.get("TESTING"):
-        send_whatsapp_message_task(phone, f"Your OTP is {otp_code}")
-    else:
-        send_whatsapp_message_task.delay(phone, f"Your OTP is {otp_code}")
+    logging.info("Twilio disabled – OTP not sent, available in logs and database")
 
     return jsonify({"status": "success", "message": "OTP sent"}), 200
 
