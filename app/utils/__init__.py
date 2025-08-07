@@ -8,6 +8,7 @@ from .jwt import (
     decode_token,
     TokenError,
 )
+from .phone import normalize_phone
 
 __all__ = [
     'ok',
@@ -23,4 +24,5 @@ __all__ = [
     'has_required_fields',
     'validate_schema',
     'transactional',
+    'normalize_phone',
 ]

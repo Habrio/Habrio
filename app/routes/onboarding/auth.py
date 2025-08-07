@@ -16,6 +16,7 @@ from app.utils import (
     create_refresh_token,
     decode_token,
     TokenError,
+    normalize_phone,
 )
 
 
@@ -63,10 +64,14 @@ def generate_otp():
 
 # Helper for rate limiting by phone number
 def _otp_phone_key():
-    """Extract phone number from JSON body for rate limiting."""
+    """Extract normalized phone number from JSON body for rate limiting."""
     data = request.get_json(silent=True)
     if isinstance(data, dict):
-        return data.get("phone", "")
+        phone = data.get("phone", "")
+        try:
+            return normalize_phone(phone)
+        except ValueError:
+            return phone
     return ""
 
 
@@ -86,7 +91,7 @@ def _otp_phone_key():
 @validate_schema(SendOTPRequest)
 def send_otp_handler():
     data: SendOTPRequest = request.validated_data
-    phone = data.phone
+    phone = normalize_phone(data.phone)
 
     otp_code = str(random.randint(100000, 999999))
 
@@ -120,7 +125,7 @@ def send_otp_handler():
 @validate_schema(VerifyOTPRequest)
 def verify_otp_handler():
     data: VerifyOTPRequest = request.validated_data
-    phone = data.phone.strip()
+    phone = normalize_phone(data.phone.strip())
     otp = data.otp.strip()
 
     otp_record = OTP.query.filter_by(phone=phone, otp=otp, is_used=False).first()
