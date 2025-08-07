@@ -19,8 +19,13 @@ def validate_schema(schema):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
+            payload = request.get_json(silent=True)
+            if not isinstance(payload, dict):
+                return validation_error_response([
+                    {"loc": [], "msg": "JSON body must be an object", "type": "type_error"}
+                ])
             try:
-                obj = schema(**(request.get_json() or {}))
+                obj = schema(**payload)
             except ValidationError as ve:
                 return validation_error_response(ve.errors())
             request.validated_data = obj

@@ -46,6 +46,17 @@ def test_send_otp_no_phone(client):
     assert response.get_json()['status'] == 'error'
 
 
+def test_send_otp_invalid_json_structure(client):
+    response = client.post(
+        '/api/v1/send-otp',
+        data='["9111111111"]',
+        headers={'Content-Type': 'application/json'},
+        environ_overrides={'REMOTE_ADDR': '10.0.0.2'}
+    )
+    assert response.status_code == 400
+    assert response.get_json()['status'] == 'error'
+
+
 def test_verify_otp_success_creates_profile(client, app):
     phone = '1112223333'
     send_otp(client, phone)
