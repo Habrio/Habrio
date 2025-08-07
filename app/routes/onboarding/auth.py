@@ -61,6 +61,15 @@ def generate_otp():
     return str(random.randint(100000, 999999))
 
 
+# Helper for rate limiting by phone number
+def _otp_phone_key():
+    """Extract phone number from JSON body for rate limiting."""
+    data = request.get_json(silent=True)
+    if isinstance(data, dict):
+        return data.get("phone", "")
+    return ""
+
+
 # --- Send OTP ---
 
 @auth_bp.route("/send-otp", methods=["POST"])
@@ -71,7 +80,7 @@ def generate_otp():
 )
 @limiter.limit(
     lambda: current_app.config["OTP_SEND_LIMIT_PER_PHONE"],
-    key_func=lambda: (request.get_json() or {}).get("phone", ""),
+    key_func=_otp_phone_key,
     error_message="Too many OTP requests for this phone number",
 )
 @validate_schema(SendOTPRequest)
