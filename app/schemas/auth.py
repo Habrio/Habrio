@@ -1,8 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, constr
+
 
 class SendOTPRequest(BaseModel):
-    phone: str
+    phone: constr(pattern=r"^\d{10}$")
+
 
 class VerifyOTPRequest(BaseModel):
-    phone: str
+    phone: constr(pattern=r"^\d{10}$")
     otp: str

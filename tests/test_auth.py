@@ -1,6 +1,7 @@
 import pytest
 from models.user import OTP, UserProfile
 from app.version import API_PREFIX
+from app.utils import normalize_phone
 
 
 def send_otp(client, phone):
@@ -35,7 +36,7 @@ def test_send_otp_success_and_db_entry(client, app):
     assert response.status_code == 200
     assert response.get_json()['status'] == 'success'
     with app.app_context():
-        otp_entry = OTP.query.filter_by(phone=phone).first()
+        otp_entry = OTP.query.filter_by(phone=normalize_phone(phone)).first()
         assert otp_entry is not None
         assert otp_entry.is_used is False
 
@@ -61,7 +62,7 @@ def test_verify_otp_success_creates_profile(client, app):
     phone = '1112223333'
     send_otp(client, phone)
     with app.app_context():
-        otp_code = OTP.query.filter_by(phone=phone).first().otp
+        otp_code = OTP.query.filter_by(phone=normalize_phone(phone)).first().otp
     response = verify_otp(client, phone, otp_code)
     data = response.get_json()
     assert response.status_code == 200
@@ -69,7 +70,7 @@ def test_verify_otp_success_creates_profile(client, app):
     assert 'access_token' in data
     token = data['access_token']
     with app.app_context():
-        user = UserProfile.query.filter_by(phone=phone).first()
+        user = UserProfile.query.filter_by(phone=normalize_phone(phone)).first()
         assert user is not None
         assert user is not None
         assert user.basic_onboarding_done is False
@@ -87,7 +88,7 @@ def test_logout_flow_invalidates_token(client, app):
     phone = '7778889999'
     send_otp(client, phone)
     with app.app_context():
-        otp_code = OTP.query.filter_by(phone=phone).first().otp
+        otp_code = OTP.query.filter_by(phone=normalize_phone(phone)).first().otp
     verify_resp = verify_otp(client, phone, otp_code)
     token = verify_resp.get_json()['access_token']
     # token works before logout
@@ -98,7 +99,7 @@ def test_logout_flow_invalidates_token(client, app):
     assert logout_resp.status_code == 200
     # token still works after logout in JWT flow
     with app.app_context():
-        assert UserProfile.query.filter_by(phone=phone).first() is not None
+        assert UserProfile.query.filter_by(phone=normalize_phone(phone)).first() is not None
     fail_resp = basic_onboarding(client, token)
     assert fail_resp.status_code == 200
     second_logout = logout(client, f"Bearer {token}")

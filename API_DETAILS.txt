@@ -27,11 +27,11 @@ POST /auth/refresh
         {"access_token": "...", "refresh_token": "...", "expires_in": 900}
 
 POST /send-otp
-    - Body: {"phone": str}
+    - Body: {"phone": str} (10-digit mobile number, country code +91 is assumed)
     - Generates OTP for phone. Rate limited by IP and phone. Returns generic success.
     Example request:
         POST /api/v1/send-otp
-        {"phone": "+15555555555"}
+        {"phone": "9876543210"}
     Example response:
         {"status": "success", "message": "OTP sent"}
 
@@ -40,7 +40,7 @@ POST /verify-otp
     - Verifies OTP, creates/updates user profile, and returns access/refresh tokens plus onboarding status.
     Example request:
         POST /api/v1/verify-otp
-        {"phone": "+15555555555", "otp": "123456"}
+        {"phone": "9876543210", "otp": "123456"}
     Example response:
         {"status": "success", "access_token": "...", "refresh_token": "...", "expires_in": 900, "basic_onboarding_done": false}
 
