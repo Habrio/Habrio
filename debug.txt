@@ -1,0 +1,8 @@
+Issue:
+When running tests or the /api/v1/send-otp endpoint, OpenTelemetry's BatchSpanProcessor with ConsoleSpanExporter tried to export spans after the test framework closed stdout, resulting in "ValueError: I/O operation on closed file" and 500 errors.
+
+Fix:
+Replaced BatchSpanProcessor with SimpleSpanProcessor in app/telemetry.py when TESTING is enabled. This exports spans synchronously, avoiding background flush after stdout is closed.
+
+Other Modifications:
+No changes needed for production configuration; OTLP exporter remains for non-testing environments.
