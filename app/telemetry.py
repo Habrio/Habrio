@@ -1,7 +1,11 @@
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    ConsoleSpanExporter,
+    SimpleSpanProcessor,
+)
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
@@ -19,7 +23,7 @@ def init_tracing(app):
 
     provider = TracerProvider(resource=Resource.create({"service.name": service_name}))
     if app.config.get("TESTING"):
-        processor = BatchSpanProcessor(ConsoleSpanExporter())
+        processor = SimpleSpanProcessor(ConsoleSpanExporter())
     else:
         processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
     provider.add_span_processor(processor)
