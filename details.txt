@@ -1,0 +1,40 @@
+Habrio Backend Code Overview
+============================
+
+General Structure
+-----------------
+- **main.py** and **wsgi.py** start the Flask application by importing and running `create_app`.
+- **celery_app.py** configures a Celery instance with in-memory defaults and logs task failures and retries.
+- **extensions.py** exposes a global Flask-Limiter rate limiter used throughout the app.
+
+Application Package (`app/`)
+---------------------------
+- **__init__.py** defines `create_app`, loading environment configuration, setting up logging, Swagger docs, Prometheus metrics, CORS, rate limiting, and database/telemetry initialization.
+- **config.py** contains environment-specific configuration classes and validates required variables in production.
+- **logging.py** formats logs as JSON, injects request and trace IDs, and masks sensitive fields.
+- **errors.py** registers global handlers for HTTP errors, unexpected exceptions, and rate-limit responses.
+- **cli.py** provides safe database migration commands that guard against accidental production use.
+- **telemetry.py** sets up OpenTelemetry tracing and instruments Flask, SQLAlchemy and outbound requests.
+- **metrics.py** exposes Prometheus metrics and tracks SQL query duration and HTTP error counts.
+- **version.py** defines the API prefix (`/api/v1`).
+- **api.py** registers blueprints for auth, user, vendor, consumer, admin, and optional AI agent routes.
+- **utils/** supplies helpers such as JWT creation/verification, authentication and role decorators, transactional DB context, phone normalization, request validation, and standard response envelopes.
+
+Routes and Schemas
+------------------
+- `routes/onboarding/auth.py` implements OTP login with rate limiting, issuing JWT access and refresh tokens.
+- `routes/onboarding/user.py` lets authenticated users complete basic onboarding.
+- `routes/consumer`, `routes/vendor`, and `routes/admin` host role-specific endpoints for operations like orders, shops, wallets and more. An optional `routes/consumer/agent.py` exposes an AI assistant when an OpenAI key is present.
+- `schemas/` provides Pydantic models that validate request payloads.
+
+Models (`models/`)
+-----------------
+- **user.py** defines OTP, `UserProfile`, and `ConsumerProfile` tables.
+- **shop.py** describes shop metadata and hours plus logging of open/close actions.
+- **order.py** models orders and related items, messages, status logs, ratings, issues, and returns.
+- Additional modules (`cart.py`, `item.py`, `vendor.py`, `wallet.py`) cover other domain entities.
+
+Testing
+-------
+- The `tests/` directory contains extensive pytest suites covering authentication, rate limits, wallet operations, route behavior, and more.
+
