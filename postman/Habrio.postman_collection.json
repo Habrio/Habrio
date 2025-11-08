@@ -1,0 +1,625 @@
+{
+  "info": {
+    "name": "Habrio API",
+    "description": "# Habrio API Collection\n\nSet the collection variables (or attach an environment) before running requests.\n\n## Common headers\n- `Authorization: Bearer <token>` — use the relevant role token variable (e.g. `{{consumerAccessToken}}`).\n- `Content-Type: application/json` for JSON bodies.\n\n## Environment variables\n| Variable | Purpose |\n| --- | --- |\n| `baseUrl` | Base URL for the API (e.g. `http://localhost:5000`). |\n| `generalAccessToken` | Access token for pre-onboarding requests. |\n| `consumerAccessToken` | Access token issued to consumer accounts. |\n| `consumerRefreshToken` | Refresh token returned by `/auth/verify-otp`. |\n| `vendorAccessToken` | Access token issued to vendor accounts. |\n| `adminAccessToken` | Access token issued to admin accounts. |\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "description": "OTP login and token lifecycle endpoints.",
+      "item": [
+        {
+          "name": "Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+91-9876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/send-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "send-otp"
+              ]
+            },
+            "description": "Request a one-time password for the provided phone number."
+          }
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+91-9876543210\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "verify-otp"
+              ]
+            },
+            "description": "Verify the OTP to obtain access and refresh tokens. Save the returned tokens into the environment variables."
+          }
+        },
+        {
+          "name": "Refresh access token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{consumerRefreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Exchange a stored refresh token for a fresh access token."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{generalAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "logout"
+              ]
+            },
+            "description": "Invalidate the active access token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Onboarding",
+      "description": "Complete the basic onboarding flow after authentication.",
+      "item": [
+        {
+          "name": "Basic onboarding",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{generalAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Asha Consumer\",\n  \"city\": \"Bengaluru\",\n  \"society\": \"Palm Meadows\",\n  \"role\": \"consumer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/onboarding/basic",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "onboarding",
+                "basic"
+              ]
+            },
+            "description": "Populate the initial profile fields for the authenticated user."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consumer",
+      "description": "Endpoints that require a consumer access token.",
+      "item": [
+        {
+          "name": "Complete consumer onboarding",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{consumerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flat_number\": \"A-501\",\n  \"profile_image_url\": \"https://cdn.example.com/profiles/asha.png\",\n  \"gender\": \"female\",\n  \"date_of_birth\": \"1992-07-16\",\n  \"preferred_language\": \"en\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consumer/onboarding",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "consumer",
+                "onboarding"
+              ]
+            },
+            "description": "Submit consumer-specific onboarding details for the authenticated user."
+          }
+        },
+        {
+          "name": "Get my profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{consumerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consumer/profile/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "consumer",
+                "profile",
+                "me"
+              ]
+            },
+            "description": "Retrieve the consumer profile associated with the current token."
+          }
+        },
+        {
+          "name": "Update consumer profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{consumerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flat_number\": \"B-1102\",\n  \"preferred_language\": \"hi\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consumer/profile/edit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "consumer",
+                "profile",
+                "edit"
+              ]
+            },
+            "description": "Update editable consumer profile fields."
+          }
+        },
+        {
+          "name": "List society shops",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{consumerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/consumer/shops?status=open&type=grocery",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "consumer",
+                "shops"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open"
+                },
+                {
+                  "key": "type",
+                  "value": "grocery"
+                }
+              ]
+            },
+            "description": "List nearby shops with optional filters for `status`, `type`, and repeated `tag` parameters."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vendor",
+      "description": "Vendor management endpoints. Requires a vendor access token.",
+      "item": [
+        {
+          "name": "Create vendor profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendorAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"business_type\": \"kirana\",\n  \"business_name\": \"Neighborhood Mart\",\n  \"address\": \"12 Residency Road, Palm Meadows\",\n  \"gst_number\": \"29ABCDE1234F1Z5\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "vendor",
+                "profile"
+              ]
+            },
+            "description": "Create the vendor profile prior to shop onboarding."
+          }
+        },
+        {
+          "name": "Create shop",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendorAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shop_name\": \"Neighborhood Mart\",\n  \"shop_type\": \"grocery\",\n  \"description\": \"Daily essentials and produce\",\n  \"delivers\": true,\n  \"appointment_only\": false,\n  \"category_tags\": \"groceries,fresh\",\n  \"logo_url\": \"https://cdn.example.com/shops/neighborhood.png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/shop",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "vendor",
+                "shop"
+              ]
+            },
+            "description": "Create the vendor's primary shop once vendor onboarding is complete."
+          }
+        },
+        {
+          "name": "Add catalog item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendorAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Organic Tomatoes\",\n  \"price\": 45.0,\n  \"brand\": \"Local Farm\",\n  \"description\": \"500g pack of organic tomatoes\",\n  \"mrp\": 50.0,\n  \"discount\": 5,\n  \"quantity_in_stock\": 30,\n  \"unit\": \"kg\",\n  \"category\": \"Vegetables\",\n  \"tags\": \"fresh,organic\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/item/add",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "vendor",
+                "item",
+                "add"
+              ]
+            },
+            "description": "Add an item to the vendor's catalog."
+          }
+        },
+        {
+          "name": "List my items",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{vendorAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/vendor/item/my",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "vendor",
+                "item",
+                "my"
+              ]
+            },
+            "description": "Fetch all catalog items associated with the vendor's shop."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Administrative list views that require an admin access token.",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users"
+              ]
+            },
+            "description": "Return a capped list of user identifiers for audit purposes."
+          }
+        },
+        {
+          "name": "List shops",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/shops",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "shops"
+              ]
+            },
+            "description": "List the most recent shops for quick verification."
+          }
+        },
+        {
+          "name": "List orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "orders"
+              ]
+            },
+            "description": "Return recent orders to monitor fulfillment status."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Agent (optional)",
+      "description": "AI assistant endpoints. Requires the agent feature to be enabled and a consumer access token.",
+      "item": [
+        {
+          "name": "Submit agent query",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{consumerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"What offers are available for vegetables today?\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agent/query",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agent",
+                "query"
+              ]
+            },
+            "description": "Send a prompt to the optional AI assistant."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "generalAccessToken",
+      "value": ""
+    },
+    {
+      "key": "consumerAccessToken",
+      "value": ""
+    },
+    {
+      "key": "consumerRefreshToken",
+      "value": ""
+    },
+    {
+      "key": "vendorAccessToken",
+      "value": ""
+    },
+    {
+      "key": "adminAccessToken",
+      "value": ""
+    }
+  ]
+}
