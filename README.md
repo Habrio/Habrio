@@ -75,6 +75,11 @@ Hitting a rate limit returns JSON 429 with an explanatory message.
 - **OpenAPI JSON spec**: Available at `/apispec.json`
 - **Prometheus metrics**: Accessible at `/metrics`
 
+### Postman collection
+
+- Import `postman/Habrio.postman_collection.json` into Postman (File → Import) to access curated requests for auth, onboarding, consumer, vendor, admin, and the optional agent APIs.
+- Before sending requests, configure the collection variables (or attach an environment) with your `baseUrl` and the relevant JWT tokens so that headers such as `Authorization: Bearer {{consumerAccessToken}}` resolve correctly.
+
 ### Admin endpoints:
 
 Basic admin endpoints protected by JWT auth and `admin` role:
