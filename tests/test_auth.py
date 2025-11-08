@@ -58,6 +58,28 @@ def test_send_otp_invalid_json_structure(client):
     assert response.get_json()['status'] == 'error'
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"phone": "1234567890", "otp": "12345"},
+        {"phone": "1234567890", "otp": "abcdef"},
+        {"phone": "1234567890", "otp": "1234567"},
+        {"phone": "1234567890"},
+    ],
+)
+def test_verify_otp_validation_errors(client, payload):
+    response = client.post('/api/v1/verify-otp', json=payload)
+    data = response.get_json()
+
+    assert response.status_code == 400
+    assert data['status'] == 'error'
+    assert data['message'] == 'Validation error'
+    assert any(
+        error.get('loc') and error['loc'][-1] == 'otp'
+        for error in data.get('errors', [])
+    )
+
+
 def test_verify_otp_success_creates_profile(client, app):
     phone = '1112223333'
     send_otp(client, phone)

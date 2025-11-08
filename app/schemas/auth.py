@@ -7,4 +7,4 @@ class SendOTPRequest(BaseModel):
 
 class VerifyOTPRequest(BaseModel):
     phone: constr(pattern=r"^\d{10}$")
-    otp: str
+    otp: constr(pattern=r"^\d{6}$")
