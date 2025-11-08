@@ -4,7 +4,7 @@ from flask_limiter.util import get_remote_address
 from extensions import limiter
 from models.user import OTP, UserProfile
 from models import db
-import random
+import secrets
 from datetime import datetime, timedelta
 import logging
 from app.utils import internal_error_response
@@ -59,7 +59,7 @@ def refresh_tokens():
 # --- OTP Utility ---
 
 def generate_otp():
-    return str(random.randint(100000, 999999))
+    return str(secrets.randbelow(900000) + 100000)
 
 
 # Helper for rate limiting by phone number
@@ -93,7 +93,7 @@ def send_otp_handler():
     data: SendOTPRequest = request.validated_data
     phone = normalize_phone(data.phone)
 
-    otp_code = str(random.randint(100000, 999999))
+    otp_code = generate_otp()
 
     new_otp = OTP(
         phone=phone,
@@ -109,8 +109,7 @@ def send_otp_handler():
         logging.error("Failed to create OTP: %s", e, exc_info=True)
         return internal_error_response()
 
-    logging.info("[DEBUG] OTP for %s is %s", phone, otp_code)
-    logging.info("Twilio disabled – OTP not sent, available in logs and database")
+    logging.info("Twilio disabled – OTP not sent; OTP stored in database for %s", phone)
 
     return jsonify({"status": "success", "message": "OTP sent"}), 200
 
@@ -133,8 +132,12 @@ def verify_otp_handler():
     if not otp_record:
         recent_otp = OTP.query.filter_by(phone=phone).order_by(OTP.created_at.desc()).first()
         if recent_otp:
-            logging.warning("OTP mismatch: submitted=%s, expected=%s", otp, recent_otp.otp)
-            logging.warning("is_used=%s, created_at=%s", recent_otp.is_used, recent_otp.created_at)
+            logging.warning(
+                "OTP mismatch for %s; latest record status is_used=%s created_at=%s",
+                phone,
+                recent_otp.is_used,
+                recent_otp.created_at,
+            )
         else:
             logging.warning("No OTP record found for phone: %s", phone)
         return error("Invalid or expired OTP", status=401)
